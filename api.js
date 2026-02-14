@@ -48,6 +48,7 @@ const api = {
         if (existing) {
             mpState.playerId = existing.id;
             mpState.playerName = existing.display_name;
+            await api.restoreCitySession(existing.id);
             return existing;
         }
 
@@ -66,6 +67,32 @@ const api = {
         mpState.playerId = newPlayer.id;
         mpState.playerName = newPlayer.display_name;
         return newPlayer;
+    },
+
+    // Restore city session on reload
+    async restoreCitySession(playerId) {
+        try {
+            const { data } = await supabaseClient
+                .from('city_members')
+                .select('city_id, cities(id, name, weather, economic_health, avg_price, total_businesses, join_code)')
+                .eq('player_id', playerId)
+                .eq('is_active', true)
+                .single();
+
+            if (data && data.cities) {
+                const city = data.cities;
+                mpState.cityId = city.id;
+                mpState.cityName = city.name;
+                mpState.cityWeather = city.weather;
+                mpState.cityEconomyHealth = city.economic_health || 1.0;
+                mpState.cityAvgPrice = city.avg_price || 1.0;
+                mpState.cityPlayerCount = city.total_businesses || 1;
+                mpState.cityJoinCode = city.join_code || null;
+                mpState.mode = 'city';
+            }
+        } catch (err) {
+            // Not in a city — stay in solo mode
+        }
     },
 
     // Update player display name
@@ -238,7 +265,8 @@ const api = {
                         weather: getRandomWeather(),
                         max_players: CITY_CONFIG.MAX_PLAYERS,
                         customer_pool: CITY_CONFIG.BASE_CUSTOMER_POOL,
-                        economic_health: 1.0
+                        economic_health: 1.0,
+                        join_code: Math.random().toString(36).substring(2, 8).toUpperCase()
                     })
                     .select()
                     .single();
@@ -265,11 +293,50 @@ const api = {
             mpState.cityEconomyHealth = city.economic_health || 1.0;
             mpState.cityAvgPrice = city.avg_price || 1.0;
             mpState.cityPlayerCount = (city.total_businesses || 0) + 1;
+            mpState.cityJoinCode = city.join_code || null;
             mpState.mode = 'city';
 
             return city;
         } catch (err) {
             console.error('Failed to join city:', err);
+            return null;
+        }
+    },
+
+    // Join a city by its 6-character invite code
+    async joinCityByCode(code) {
+        if (!supabaseClient || !mpState.playerId) return null;
+        try {
+            const { data: city, error } = await supabaseClient
+                .from('cities')
+                .select('id, name, weather, economic_health, avg_price, total_businesses, max_players, join_code')
+                .eq('join_code', code.toUpperCase().trim())
+                .single();
+
+            if (error || !city) return null;
+
+            await supabaseClient.from('city_members').upsert({
+                city_id: city.id,
+                player_id: mpState.playerId,
+                is_active: true
+            });
+
+            await supabaseClient.from('cities').update({
+                total_businesses: (city.total_businesses || 0) + 1
+            }).eq('id', city.id);
+
+            mpState.cityId = city.id;
+            mpState.cityName = city.name;
+            mpState.cityWeather = city.weather;
+            mpState.cityEconomyHealth = city.economic_health || 1.0;
+            mpState.cityAvgPrice = city.avg_price || 1.0;
+            mpState.cityPlayerCount = (city.total_businesses || 0) + 1;
+            mpState.cityJoinCode = city.join_code || null;
+            mpState.mode = 'city';
+
+            return city;
+        } catch (err) {
+            console.error('joinCityByCode failed:', err);
             return null;
         }
     },
