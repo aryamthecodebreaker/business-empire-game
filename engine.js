@@ -74,7 +74,7 @@ function calculatePriceImpact() {
         priceImpact = 0.5;
         priceReason = '\u26A0\uFE0F Your price ($' + game.price.toFixed(2) + ') is too low! Customers think it\'s poor quality. Min recommended: $' + minFairPrice.toFixed(2);
     } else if (game.price > tooExpensivePrice) {
-        priceImpact = 0.05;
+        priceImpact = 0;
         priceReason = '\uD83D\uDEAB Your price ($' + game.price.toFixed(2) + ') is WAY TOO HIGH! Almost no customers at this price. Max reasonable: $' + maxReasonablePrice.toFixed(2);
     } else if (game.price > maxReasonablePrice) {
         const excessPercent = (game.price - maxReasonablePrice) / maxReasonablePrice;
@@ -88,7 +88,7 @@ function calculatePriceImpact() {
         priceReason = '\u2705 Your price ($' + game.price.toFixed(2) + ') is in the sweet spot!';
     }
 
-    return { priceImpact, priceReason };
+    return { priceImpact, priceReason, maxReasonablePrice };
 }
 
 async function processDay() {
@@ -102,8 +102,7 @@ async function processDay() {
 
     let customers;
     let cityData = null;
-    const { priceImpact, priceReason } = calculatePriceImpact();
-    const { maxReasonablePrice } = calculatePriceFactors();
+    const { priceImpact, priceReason, maxReasonablePrice } = calculatePriceImpact();
 
     if (typeof mpState !== 'undefined' && mpState.mode === 'city' && mpState.connected) {
         // MULTIPLAYER: Submit to server, get customer allocation from city economy
@@ -131,11 +130,6 @@ async function processDay() {
     } else {
         // SOLO: Original local calculation
         customers = calculateLocalCustomers(priceImpact);
-    }
-
-    // Ensure minimum customers on good weather (unless price is insane)
-    if (WEATHER[game.weather].mult > 1 && priceImpact > 0.05) {
-        customers = Math.max(1, customers);
     }
 
     const served = Math.min(customers, game.inventory);
@@ -184,7 +178,7 @@ async function processDay() {
     addLog('ANALYSIS', '\uD83D\uDCA1 ' + reason);
 
     // Fluctuate market prices for next day
-    game.marketPrices.materials = Math.max(0.15, Math.min(0.50, 0.20 + (Math.random() * 0.1 - 0.05)));
+    game.marketPrices.materials = Math.max(0.15, Math.min(0.50, game.marketPrices.materials + (Math.random() * 0.1 - 0.05)));
     game.marketPrices.utilities = game.day > 5 ? 5 : 0;
 
     showReport(customers, served, revenue, totalExpenses, profit, reason, catastrophe, {
@@ -199,7 +193,7 @@ async function processDay() {
     updateUI();
 
     // Submit day result for leaderboard
-    if (typeof mpState !== 'undefined' && mpState.connected && typeof api !== 'undefined') {
+    if (typeof mpState !== 'undefined' && mpState.connected && typeof api !== 'undefined' && typeof api.submitDayResult === 'function') {
         api.submitDayResult({
             day: game.day - 1,
             customers: served,
