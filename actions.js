@@ -1,7 +1,7 @@
 // Player actions — buying stock, locations, upgrades, starting days
 
 function buyStock(amt) {
-    const cost = amt * game.marketPrices.materials;
+    const cost = amt * game.marketPrices.materials * (1 - (game.upgrades.efficiency || 0) * 0.10);
     if (game.cash < cost) {
         showNotif('Not enough cash!', 'error');
         shakeButton('buy' + amt);
@@ -127,8 +127,10 @@ function toggleAutoBuy() {
 function doAutoBuy() {
     if (!game.autoBuy) return;
 
-    const threshold = parseInt(document.getElementById('autoBuyThreshold').value) || 20;
-    const targetPercent = parseInt(document.getElementById('autoBuyTarget').value) || 80;
+    const thresholdEl = document.getElementById('autoBuyThreshold');
+    const threshold = thresholdEl ? (parseInt(thresholdEl.value) || 20) : 20;
+    const targetEl = document.getElementById('autoBuyTarget');
+    const targetPercent = targetEl ? (parseInt(targetEl.value) || 80) : 80;
     const targetAmount = Math.floor(game.maxInventory * (targetPercent / 100));
 
     if (game.inventory < threshold) {
@@ -171,7 +173,7 @@ function startDay() {
     const action = document.getElementById('playerAction').value.trim();
     if (action) addLog('PLAYER', 'Day ' + game.day + ': ' + action);
 
-    setTimeout(function() { processDay(); }, 1000);
+    setTimeout(async function() { await processDay(); }, 1000);
 }
 
 function nextDay() {
