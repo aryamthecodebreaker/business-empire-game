@@ -51,7 +51,7 @@ function saveGame() {
     if (typeof mpState !== 'undefined' && mpState.connected && mpState.playerId) {
         clearTimeout(_serverSyncTimer);
         _serverSyncTimer = setTimeout(() => {
-            if (typeof api !== 'undefined' && api.syncGameState) {
+            if (typeof api !== 'undefined' && typeof api.syncGameState === 'function') {
                 api.syncGameState(game);
             }
         }, 2000);
@@ -82,7 +82,7 @@ function loadGame() {
                 lastCatastropheDay: loaded.lastCatastropheDay !== undefined ? loaded.lastCatastropheDay : -20
             };
 
-            showNotif('\uD83D\uDCBE Game loaded!', 'success');
+            showNotif('💾 Game loaded!', 'success');
         }
 
         if (savedLogs) logs = JSON.parse(savedLogs);
