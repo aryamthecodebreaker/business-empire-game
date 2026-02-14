@@ -3,6 +3,7 @@
 function init() {
     loadGame();
     updateUI();
+    if (typeof updateLocationsList === 'function') { updateLocationsList(); }
 
     // Show welcome modal for first-time players
     if (!localStorage.getItem('hasPlayedBefore')) {
