@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google Analytics -->
+<!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-V01YNCYCH3"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -10,7 +10,6 @@
 
   gtag('config', 'G-V01YNCYCH3');
 </script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -237,9 +236,18 @@
                     Undercut competitors to steal customers, or price high for margins.
                 </p>
                 <button id="joinCityBtn" class="join-city-btn" onclick="joinCity()">
-                    🏙️ JOIN A CITY
+                    🏙️ JOIN ANY CITY
                 </button>
-                <button id="leaveCityBtn" class="hidden" onclick="leaveCity()" style="border-color: #f00; color: #f00;">
+                <div id="joinCodeRow" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <span style="color: #0a0; font-size: 0.8rem; white-space: nowrap;">OR JOIN WITH CODE:</span>
+                    <input type="text" id="joinCodeInput" placeholder="e.g. ABC123" maxlength="6"
+                           style="flex: 1; min-width: 100px; text-transform: uppercase; letter-spacing: 3px; font-size: 1rem; text-align: center; border-color: #ff0; color: #ff0; background: rgba(255,255,0,0.05);"
+                           oninput="this.value=this.value.toUpperCase()" onkeypress="if(event.key==='Enter') joinCityWithCode()">
+                    <button onclick="joinCityWithCode()" style="width: auto; padding: 0.5rem 1rem; border-color: #ff0; color: #ff0; margin: 0; white-space: nowrap;">
+                        🔑 JOIN
+                    </button>
+                </div>
+                <button id="leaveCityBtn" class="hidden" onclick="leaveCity()" style="border-color: #f00; color: #f00; margin-top: 0.5rem;">
                     🚪 LEAVE CITY
                 </button>
             </div>
