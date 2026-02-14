@@ -1,5 +1,6 @@
 # 💰 Business Empire Simulator — Multiplayer
 
+
 A retro-terminal business tycoon game where you build a lemonade stand empire and compete with other players in a shared city economy.
 
 **[▶ Play Live](https://your-username.github.io/your-repo-name/)**
