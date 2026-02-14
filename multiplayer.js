@@ -10,6 +10,7 @@ const mpState = {
     cityWeather: null,
     cityEconomyHealth: 1.0,
     cityAvgPrice: 1.0,
+    cityJoinCode: null,
     competitorPrices: [],
     cityPlayerCount: 0,
     cityRank: null,
@@ -31,6 +32,13 @@ async function initMultiplayer() {
 
     if (connected) {
         addLog('MP', '\uD83C\uDF10 Connected to multiplayer server');
+        // Restore city if player was in one before reload
+        if (mpState.mode === 'city' && mpState.cityId) {
+            addLog('MP', '\uD83C\uDFD9\uFE0F Restored city: ' + mpState.cityName);
+            mpState.citySubscription = api.subscribeToCityFeed(mpState.cityId, handleCityEvent);
+            const messages = await api.fetchChatMessages(mpState.cityId);
+            mpState.chatMessages = messages;
+        }
         // Load initial leaderboard
         refreshLeaderboard();
         // Load daily challenges
@@ -121,6 +129,43 @@ async function joinCity() {
         updateMultiplayerUI();
     } else {
         showNotif('Failed to join city', 'error');
+    }
+}
+
+async function joinCityWithCode() {
+    if (!mpState.connected) {
+        showNotif('Not connected to server', 'error');
+        return;
+    }
+    const input = document.getElementById('joinCodeInput');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    if (!code || code.length !== 6) {
+        showNotif('Enter a 6-character city code!', 'error');
+        return;
+    }
+    showNotif('Joining city...', 'success');
+    const city = await api.joinCityByCode(code);
+    if (city) {
+        addLog('CITY', '\uD83C\uDFD9\uFE0F Joined city via code: ' + city.name);
+        showNotif('Joined ' + city.name + '!', 'success');
+        mpState.citySubscription = api.subscribeToCityFeed(mpState.cityId, handleCityEvent);
+        const messages = await api.fetchChatMessages(mpState.cityId);
+        mpState.chatMessages = messages;
+        if (input) input.value = '';
+        updateMultiplayerUI();
+    } else {
+        showNotif('\u274C City code not found!', 'error');
+    }
+}
+
+function copyCityCode() {
+    const code = mpState.cityJoinCode || '------';
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(function() {
+            showNotif('\uD83D\uDCCB Code copied: ' + code, 'success');
+        });
+    } else {
+        showNotif('Code: ' + code, 'success');
     }
 }
 
@@ -288,6 +333,12 @@ function updateCityInfoPanel() {
         '<div class="city-stat"><div class="label">PLAYERS</div><div class="value">' + (mpState.cityPlayerCount || 0) + '</div></div>' +
         '<div class="city-stat"><div class="label">ECONOMY</div><div class="value" style="color:' + economyColor + '">' + economyLabel + '</div></div>' +
         '<div class="city-stat"><div class="label">AVG PRICE</div><div class="value">$' + Number(mpState.cityAvgPrice || 0).toFixed(2) + '</div></div>' +
+    '</div>' +
+    '<div style="margin-top:0.75rem; padding:0.5rem; border:1px solid #ff0; background:rgba(255,255,0,0.05); display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">' +
+        '<span style="color:#ff0; font-size:0.85rem;">\uD83D\uDD11 INVITE CODE:</span>' +
+        '<strong style="color:#0ff; font-size:1.1rem; letter-spacing:3px;">' + (mpState.cityJoinCode || '------') + '</strong>' +
+        '<button onclick="copyCityCode()" style="width:auto; padding:0.2rem 0.6rem; font-size:0.7rem; margin:0; border-color:#ff0; color:#ff0;">\uD83D\uDCCB COPY</button>' +
+        '<span style="color:#0a0; font-size:0.75rem;">Share with friends!</span>' +
     '</div>';
 
     // Price ticker
@@ -328,9 +379,17 @@ function updateMultiplayerUI() {
     const joinBtn = document.getElementById('joinCityBtn');
     const leaveBtn = document.getElementById('leaveCityBtn');
 
+    // Hide join code input when in a city
+    const codeRow = document.getElementById('joinCodeRow');
+    if (codeRow) {
+        codeRow.style.display = (mpState.mode === 'city') ? 'none' : '';
+    }
+
     if (citySection) {
         if (mpState.mode === 'city' && mpState.cityId) {
             citySection.classList.remove('hidden');
+            const nameDisplay = document.getElementById('cityNameDisplay');
+            if (nameDisplay) nameDisplay.textContent = mpState.cityName || 'City';
             if (joinBtn) joinBtn.classList.add('hidden');
             if (leaveBtn) leaveBtn.classList.remove('hidden');
             updateCityInfoPanel();
