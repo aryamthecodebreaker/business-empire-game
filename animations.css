@@ -1,0 +1,84 @@
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(0,255,0,0.3);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(0,255,0,0.6);
+    }
+}
+
+/* FLOATING TEXT ANIMATIONS - THE JUICE! */
+.floating-text {
+    position: fixed;
+    pointer-events: none;
+    font-weight: bold;
+    font-size: 1.5rem;
+    z-index: 9999;
+    animation: floatUp 1.5s ease-out forwards;
+    text-shadow: 0 0 10px currentColor;
+}
+
+@keyframes floatUp {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-30px) scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-80px) scale(0.8);
+    }
+}
+
+/* BUTTON JUICE - CLICKY FEEL */
+button:active:not(:disabled) {
+    transform: scale(0.95);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+}
+
+button.shake {
+    animation: shake 0.5s;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Button ripple effect */
+button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(0, 255, 0, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+button:active::after {
+    width: 300px;
+    height: 300px;
+}

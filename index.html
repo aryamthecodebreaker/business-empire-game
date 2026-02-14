@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO Meta Tags -->
+    <title>Business Empire Simulator - Multiplayer</title>
+    <meta name="description" content="Build your business empire from a simple lemonade stand! Compete with other players in shared city economies. Manage pricing, inventory, locations, and upgrades in this addictive free browser game.">
+    <meta name="keywords" content="business game, multiplayer, management simulator, lemonade stand, incremental game, browser game, free online game, business simulation, strategy game, tycoon game, competitive">
+    <meta name="author" content="Business Empire Game">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Business Empire Simulator - Multiplayer Business Game">
+    <meta property="og:description" content="Build your business empire! Compete with other players in shared city economies. Play free in your browser!">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>💰</text></svg>">
+
+    <!-- Schema.org markup -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Game",
+      "name": "Business Empire Simulator",
+      "description": "A free online multiplayer business management simulation game",
+      "genre": "Simulation, Strategy, Business Management, Multiplayer",
+      "gamePlatform": "Web Browser",
+      "numberOfPlayers": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 30 },
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "applicationCategory": "Game",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires JavaScript"
+    }
+    </script>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/multiplayer.css">
+</head>
+<body>
+    <div class="container">
+        <h1 id="businessName" style="cursor: pointer;">█▓▒░ LEMONADE STAND ░▒▓█</h1>
+        <div class="header-info">
+            <span id="headerInfo">Level 1 • Day 1 • ☀️ SUNNY • 1 Location</span>
+            <span id="mpStatus" class="mp-status offline" style="margin-left: 0.5rem;">
+                <span class="mp-status-dot"></span> OFFLINE
+            </span>
+        </div>
+        <div class="xp-bar">
+            <div class="xp-fill" id="xpFill" style="width: 0%"></div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 DASHBOARD</button>
+            <button class="tab-button" data-tab="business" onclick="switchTab('business')">🏢 BUSINESS</button>
+            <button class="tab-button" data-tab="upgrades" onclick="switchTab('upgrades')">⚡ UPGRADES</button>
+            <button class="tab-button" data-tab="multiplayer" onclick="switchTab('multiplayer')">🌐 MULTIPLAYER</button>
+            <button class="tab-button" data-tab="log" onclick="switchTab('log')">📜 LOG</button>
+            <button class="tab-button" onclick="showTutorial()" style="margin-left: auto; border-color: #0ff; color: #0ff;">❓ HELP</button>
+        </div>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- TAB: DASHBOARD                          -->
+        <!-- ═══════════════════════════════════════ -->
+        <div id="tab-dashboard" class="tab-content active">
+
+        <div id="setupPanel" class="panel" style="margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h3 style="margin: 0;">🚀 START DAY <span id="dayNum">1</span></h3>
+                <button onclick="togglePlan()" style="width: auto; padding: 0.3rem 0.8rem; margin: 0; font-size: 0.8rem;" id="togglePlanBtn">
+                    📝 Strategy
+                </button>
+            </div>
+            <div id="planSection" class="hidden" style="margin-bottom: 0.5rem;">
+                <textarea id="playerAction" placeholder="Your strategy for today (optional - just for fun!)..." rows="2" style="margin: 0.5rem 0;"></textarea>
+            </div>
+            <button onclick="startDay()" id="startBtn" style="font-size: 1.5rem; font-weight: bold; padding: 1.5rem; background: rgba(0,255,0,0.1); border-width: 3px; box-shadow: 0 0 20px rgba(0,255,0,0.3); animation: pulseGlow 2s infinite;">
+                ▶ RUN DAY <span id="dayNumBtn">1</span>
+            </button>
+        </div>
+
+        <div class="grid">
+            <div class="panel">
+                <h3>⚡ STATS</h3>
+                <div class="stat-row">
+                    <span>💰 Cash:</span>
+                    <span id="cash" class="highlight">$5.00</span>
+                </div>
+                <div class="stat-row">
+                    <span>📦 Stock:</span>
+                    <span id="stock">10/50</span>
+                </div>
+                <div class="stat-row">
+                    <span>💵 Your Price:</span>
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="number" id="priceInput" value="1.00" step="0.10" min="0.10" max="10000"
+                               style="width: 80px; padding: 0.3rem; margin: 0; font-size: 1rem; font-weight: bold; text-align: right;"
+                               onchange="updatePrice()">
+                        <span style="font-size: 0.8rem; color: #0a0;">per unit</span>
+                    </span>
+                </div>
+                <div id="priceMonitor" class="hidden" style="padding: 0.5rem; margin: 0.5rem 0; border: 1px solid #ff0; background: rgba(255,255,0,0.1); font-size: 0.75rem;">
+                    <span id="priceMonitorText" style="color: #ff0;"></span>
+                </div>
+                <div class="stat-row">
+                    <span>⭐ Reputation:</span>
+                    <span id="reputation" class="highlight">0</span>
+                </div>
+                <div style="padding-top: 0.5rem; font-size: 0.8rem; color: #0a0; text-align: center;">
+                    <div id="repStatus">New business</div>
+                    <div id="repMult" style="color: #0ff; margin-top: 0.25rem;">Mult: 1.00x</div>
+                </div>
+                <div class="stat-row">
+                    <span>🏢 Locations:</span>
+                    <span id="locationCount">1</span>
+                </div>
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #0a0; font-size: 0.85rem;">
+                    <div>Total Revenue: $<span id="totalRev">0.00</span></div>
+                    <div>Total Customers: <span id="totalCust">0</span></div>
+                    <div>Best Day: <span id="bestDay">0</span></div>
+                    <div id="streakDiv" class="hidden warning">🔥 Streak: <span id="streak">0</span></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>🛒 RESTOCK</h3>
+                <div style="font-size: 0.8rem; color: #0a0; margin-bottom: 0.5rem;">
+                    Cost: $<span id="matCost">0.20</span>/unit (Market Price)
+                </div>
+                <div style="font-size: 0.75rem; color: #ff0; margin-bottom: 0.5rem; font-style: italic;">
+                    💡 Buy inventory BEFORE starting the day!
+                </div>
+
+                <div style="border: 1px solid #0ff; padding: 0.8rem; margin-bottom: 0.5rem; background: rgba(0,255,255,0.05);">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                        <input type="checkbox" id="autoBuyToggle" onchange="toggleAutoBuy()" style="width: auto; margin: 0; cursor: pointer;">
+                        <span style="color: #0ff;">🤖 Auto-Buy Inventory</span>
+                    </label>
+                    <div id="autoBuySettings" class="hidden" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #0a0; font-size: 0.85rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;">
+                            <span style="color: #0a0;">When stock below:</span>
+                            <input type="number" id="autoBuyThreshold" value="20" min="0" max="100"
+                                   style="width: 60px; padding: 0.2rem; margin: 0; font-size: 0.85rem;">
+                            <span style="color: #0a0;">units</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="color: #0a0;">Buy up to:</span>
+                            <input type="number" id="autoBuyTarget" value="80" min="0"
+                                   style="width: 60px; padding: 0.2rem; margin: 0; font-size: 0.85rem;">
+                            <span style="color: #0a0;">% capacity</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <button onclick="buyStock(10)" id="buy10">+10 ($<span id="cost10">2.00</span>)</button>
+                    <button onclick="buyStock(25)" id="buy25">+25 ($<span id="cost25">5.00</span>)</button>
+                    <button onclick="buyStock(50)" id="buy50">+50 ($<span id="cost50">10.00</span>)</button>
+                    <button onclick="buyStock(100)" id="buy100">+100 ($<span id="cost100">20.00</span>)</button>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; border: 1px solid #0a0; font-size: 0.85rem;">
+                    <div style="color: #0a0; margin-bottom: 0.5rem; font-weight: bold;">Fixed Daily Costs:</div>
+                    <div>Total Rent: $<span id="rentCost">0.00</span>/day</div>
+                    <div>Utilities: $<span id="utilCost">0.00</span>/day</div>
+                    <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #0a0; color: #ff0;">
+                        Daily Total: $<span id="totalFixed">0.00</span>/day
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- TAB: BUSINESS                           -->
+        <!-- ═══════════════════════════════════════ -->
+        <div id="tab-business" class="tab-content">
+            <div class="panel" style="margin-bottom: 1rem;">
+                <h3>📊 MARKET PRICES</h3>
+                <div id="marketPrices"></div>
+            </div>
+
+            <div class="panel" style="margin-bottom: 1rem;">
+                <h3>🏢 EXPAND YOUR BUSINESS</h3>
+                <div style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #0a0; background: rgba(0,255,0,0.1);">
+                    <div style="color: #ff0; font-weight: bold; margin-bottom: 0.5rem;">Next Location Details:</div>
+                    <div style="font-size: 0.9rem;">
+                        <div>Purchase Price: $<span id="nextLocationPrice">2500</span></div>
+                        <div>Monthly Rent: $<span id="nextLocationRent">250</span>/day (10% of price)</div>
+                        <div>Potential Customers: +30% capacity</div>
+                        <div style="color: #0ff; margin-top: 0.5rem;">Instant Reputation: +10</div>
+                    </div>
+                </div>
+                <button onclick="buyLocation()" id="buyLocationBtn">
+                    🏢 BUY LOCATION #<span id="nextLocationNum">2</span> - $<span id="buyLocationPrice">2500</span>
+                </button>
+                <div id="locationsList" style="margin-top: 1rem; padding: 1rem; border: 1px solid #0a0; font-size: 0.85rem;">
+                    <div style="color: #0a0; font-weight: bold; margin-bottom: 0.5rem;">Your Locations:</div>
+                    <div id="locationsContent">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- TAB: UPGRADES                           -->
+        <!-- ═══════════════════════════════════════ -->
+        <div id="tab-upgrades" class="tab-content">
+            <div class="panel">
+                <h3>⚡ UPGRADES</h3>
+                <div id="upgradesContentTab"></div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- TAB: MULTIPLAYER                        -->
+        <!-- ═══════════════════════════════════════ -->
+        <div id="tab-multiplayer" class="tab-content">
+
+            <!-- Join / Leave City -->
+            <div class="panel" style="margin-bottom: 1rem;">
+                <h3>🏙️ CITY ECONOMY</h3>
+                <p style="font-size: 0.85rem; color: #0a0; margin-bottom: 1rem;">
+                    Join a city to compete with other players! Your pricing decisions affect a shared customer pool.
+                    Undercut competitors to steal customers, or price high for margins.
+                </p>
+                <button id="joinCityBtn" class="join-city-btn" onclick="joinCity()">
+                    🏙️ JOIN A CITY
+                </button>
+                <button id="leaveCityBtn" class="hidden" onclick="leaveCity()" style="border-color: #f00; color: #f00;">
+                    🚪 LEAVE CITY
+                </button>
+            </div>
+
+            <!-- City Info (visible when in a city) -->
+            <div id="citySection" class="hidden">
+                <div class="city-panel">
+                    <h3>🏙️ <span id="cityNameDisplay">City</span></h3>
+                    <div id="cityInfoContent"></div>
+
+                    <!-- Price Ticker -->
+                    <div id="priceTicker" class="price-ticker hidden">
+                        <div style="color: #ff0; font-weight: bold; margin-bottom: 0.3rem;">📊 PRICE TICKER</div>
+                    </div>
+                </div>
+
+                <!-- City Feed -->
+                <div class="panel" style="margin-bottom: 1rem;">
+                    <h3>📡 CITY FEED</h3>
+                    <div id="cityFeed" class="city-feed">
+                        <div style="color: #0a0; padding: 0.5rem;">Waiting for activity...</div>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="panel" style="margin-bottom: 1rem;">
+                    <h3>💬 CITY CHAT</h3>
+                    <div class="chat-container">
+                        <div id="chatMessages" class="chat-messages">
+                            <div style="color: #0a0; padding: 0.5rem;">No messages yet...</div>
+                        </div>
+                        <div class="chat-quick-btns">
+                            <button class="chat-quick-btn" onclick="sendQuickChat('GL!')">GL!</button>
+                            <button class="chat-quick-btn" onclick="sendQuickChat('Nice!')">Nice!</button>
+                            <button class="chat-quick-btn" onclick="sendQuickChat('Ouch!')">Ouch!</button>
+                            <button class="chat-quick-btn" onclick="sendQuickChat('GG')">GG</button>
+                        </div>
+                        <div class="chat-input-row">
+                            <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200" style="border: none; margin: 0;">
+                            <button onclick="sendChat()" style="width: auto; margin: 0; padding: 0.5rem 1rem; border: none; border-left: 1px solid #0a0;">SEND</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Challenges -->
+            <div class="panel" style="margin-bottom: 1rem;">
+                <h3>🎯 DAILY CHALLENGES</h3>
+                <div id="challengesList">
+                    <div style="color: #0a0; padding: 1rem;">Connect to see today's challenges!</div>
+                </div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="panel" style="margin-bottom: 1rem;">
+                <h3>🏆 LEADERBOARD</h3>
+                <div class="leaderboard-tabs">
+                    <button class="lb-tab active" onclick="switchLeaderboardTab('alltime','revenue')">ALL-TIME</button>
+                    <button class="lb-tab" onclick="switchLeaderboardTab('daily','revenue')">TODAY</button>
+                    <button class="lb-tab" onclick="switchLeaderboardTab('alltime','customers')">CUSTOMERS</button>
+                    <button class="lb-tab" onclick="switchLeaderboardTab('city','revenue')">MY CITY</button>
+                </div>
+                <table class="leaderboard">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">RANK</th>
+                            <th>PLAYER</th>
+                            <th style="text-align: right;">SCORE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardBody">
+                        <tr><td colspan="3" style="text-align:center; color: #0a0; padding: 1rem;">Connect to see rankings!</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- TAB: LOG                                -->
+        <!-- ═══════════════════════════════════════ -->
+        <div id="tab-log" class="tab-content">
+        <div id="logPanel" class="panel">
+            <h3>📜 ACTIVITY LOG <span style="font-size: 0.7rem; color: #ff0;">(Shows WHY things happen!)</span></h3>
+            <div class="log" id="activityLog"></div>
+        </div>
+        </div>
+
+        <!-- RESET BUTTON -->
+        <div style="text-align: center; margin: 1rem 0;">
+            <button onclick="resetGame()" style="width: auto; padding: 0.5rem 1.5rem; border-color: #f00; color: #f00;" id="resetBtn">
+                🔄 RESET GAME
+            </button>
+        </div>
+
+        <!-- DAY REPORT PANEL -->
+        <div id="reportPanel" class="panel hidden">
+            <h3 style="text-align: center; font-size: 1.8rem; color: #0ff; margin-bottom: 1rem;">📊 DAY <span id="reportDay">1</span> COMPLETE</h3>
+
+            <button onclick="nextDay()" style="font-size: 1.5rem; font-weight: bold; padding: 1.5rem; margin-bottom: 1.5rem; background: rgba(0,255,0,0.1); border-width: 3px; box-shadow: 0 0 20px rgba(0,255,0,0.3); animation: pulseGlow 2s infinite;">
+                ► CONTINUE TO NEXT DAY ►
+            </button>
+
+            <div class="grid-2" style="margin: 1rem 0; gap: 1rem;">
+                <div style="text-align: center;">
+                    <div style="font-size: 0.8rem; color: #0a0;">CUSTOMERS</div>
+                    <div style="font-size: 2rem;" id="reportCust">0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 0.8rem; color: #0a0;">REVENUE</div>
+                    <div style="font-size: 1.5rem; color: #0f0;" id="reportRev">$0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 0.8rem; color: #0a0;">EXPENSES</div>
+                    <div style="font-size: 1.5rem; color: #f00;" id="reportExp">$0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 0.8rem; color: #0a0;">PROFIT</div>
+                    <div style="font-size: 2rem;" id="reportProfit">$0</div>
+                </div>
+            </div>
+
+            <div id="expenseBreakdown" style="border: 1px solid #0a0; padding: 1rem; margin: 1rem 0; font-size: 0.85rem;">
+                <div style="color: #0a0; font-weight: bold; margin-bottom: 0.5rem;">📋 EXPENSE BREAKDOWN:</div>
+                <div style="color: #0a0; font-size: 0.75rem; font-style: italic; margin-bottom: 0.5rem;">
+                    (Materials already paid when you bought inventory)
+                </div>
+                <div>Daily Rent: $<span id="rentUsed">0.00</span></div>
+                <div>Daily Utilities: $<span id="utilUsed">0.00</span></div>
+                <div id="catastropheCostDiv" class="hidden" style="color: #f00; font-weight: bold; margin-top: 0.5rem;">Catastrophe: $<span id="catastropheCost">0.00</span></div>
+            </div>
+
+            <div id="reportEvent" class="hidden" style="border: 2px solid #f00; padding: 1rem; margin: 1rem 0; background: rgba(255,0,0,0.1);">
+                <div style="color: #f00; font-weight: bold; margin-bottom: 0.5rem;">⚠️ CATASTROPHE:</div>
+                <div style="color: #f00;" id="eventText"></div>
+            </div>
+
+            <div id="reportReason" class="hidden" style="border: 2px solid #ff0; padding: 1rem; margin: 1rem 0; background: rgba(255,255,0,0.1);">
+                <div style="color: #ff0; font-weight: bold; margin-bottom: 0.5rem;">💡 WHY THIS HAPPENED:</div>
+                <div style="color: #ff0;" id="reasonText"></div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem; font-size: 0.7rem; color: #0a0; padding: 1rem;">
+            SYSTEM: <span id="mpStatusFooter">OFFLINE</span> • AUTO-SAVE: ENABLED • 💾 Progress saved locally<br>
+            <span style="font-size: 0.6rem; color: #0a0;">v3.0 - Multiplayer City Economy - Leaderboards - Chat</span>
+        </div>
+    </div>
+
+    <div id="notification" class="notification hidden"></div>
+
+    <!-- Welcome Tutorial Modal -->
+    <div id="welcomeModal" class="modal hidden">
+        <div class="modal-content" style="border-color: #0ff; max-width: 700px;">
+            <h2 style="color: #0ff; text-align: center; margin-bottom: 1rem;">🎮 WELCOME TO BUSINESS EMPIRE!</h2>
+
+            <div style="margin-bottom: 1.5rem;">
+                <div style="color: #0f0; font-weight: bold; margin-bottom: 0.5rem;">📋 HOW TO PLAY:</div>
+                <div style="font-size: 0.9rem; line-height: 1.6; color: #0a0;">
+                    <div style="margin-bottom: 0.5rem;">1️⃣ <span style="color: #0ff;">START</span> - You have $5 and 10 units. Set your strategy and click "START DAY"</div>
+                    <div style="margin-bottom: 0.5rem;">2️⃣ <span style="color: #0ff;">PRICE</span> - Click your price to change it (start around $0.50-$1.00)</div>
+                    <div style="margin-bottom: 0.5rem;">3️⃣ <span style="color: #0ff;">RESTOCK</span> - Buy more inventory before you run out!</div>
+                    <div style="margin-bottom: 0.5rem;">4️⃣ <span style="color: #0ff;">GROW</span> - Earn reputation, upgrade, and expand locations</div>
+                    <div style="margin-bottom: 0.5rem;">5️⃣ <span style="color: #0ff;">COMPETE</span> - Join a city to compete with other players!</div>
+                </div>
+            </div>
+
+            <div style="border: 1px solid #ff0; padding: 1rem; margin-bottom: 1.5rem; background: rgba(255,255,0,0.05);">
+                <div style="color: #ff0; font-weight: bold; margin-bottom: 0.5rem;">💡 TIPS FOR SUCCESS:</div>
+                <div style="font-size: 0.85rem; line-height: 1.5; color: #ff0;">
+                    • Price too high = no customers<br>
+                    • Price too low = looks cheap<br>
+                    • Watch the weather! ☀️ = more customers<br>
+                    • Build reputation for better business<br>
+                    • Don't run out of stock!<br>
+                    • In city mode, undercut rivals to steal customers!
+                </div>
+            </div>
+
+            <div style="border: 1px solid #0f0; padding: 1rem; margin-bottom: 1.5rem; background: rgba(0,255,0,0.05);">
+                <div style="color: #0f0; font-weight: bold; margin-bottom: 0.5rem;">🎯 QUICK START GUIDE:</div>
+                <div style="font-size: 0.85rem; line-height: 1.5;">
+                    <div style="color: #0a0; margin-bottom: 0.3rem;">→ Day 1-5: Price at $0.80-$1.00, restock when low</div>
+                    <div style="color: #0a0; margin-bottom: 0.3rem;">→ Day 5-10: Save cash, buy your first upgrade</div>
+                    <div style="color: #0a0; margin-bottom: 0.3rem;">→ Day 10+: Expand to new locations!</div>
+                    <div style="color: #0a0; margin-bottom: 0.3rem;">→ Anytime: Join a city in the MULTIPLAYER tab!</div>
+                </div>
+            </div>
+
+            <button onclick="closeWelcome()" style="border-color: #0ff; color: #0ff; font-size: 1.1rem;">
+                🚀 LET'S START BUILDING!
+            </button>
+        </div>
+    </div>
+
+    <!-- Reset Modal -->
+    <div id="resetModal" class="modal hidden">
+        <div class="modal-content" style="border-color: #f00;">
+            <h2 style="color: #f00; text-align: center; margin-bottom: 1rem;">⚠️ FINAL WARNING ⚠️</h2>
+            <p style="margin-bottom: 1rem;">You are about to delete:</p>
+            <ul style="color: #ff0; margin: 1rem 0; padding-left: 1.5rem;">
+                <li>Day <span id="resetDay">1</span> progress</li>
+                <li>$<span id="resetCash">5.00</span> cash</li>
+                <li>Level <span id="resetLevel">1</span></li>
+                <li><span id="resetRep">0</span> reputation</li>
+                <li><span id="resetLocs">1</span> location(s)</li>
+            </ul>
+            <p style="color: #f00; font-weight: bold; text-align: center; margin: 1rem 0;">THIS CANNOT BE UNDONE!</p>
+            <div class="grid-2">
+                <button onclick="closeResetModal()">← CANCEL</button>
+                <button onclick="confirmReset()" style="border-color: #f00; color: #f00;">DELETE →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase client (only external dependency — 13KB gzipped) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Game modules in dependency order -->
+    <script src="shared/constants.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/effects.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/actions.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/multiplayer.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
