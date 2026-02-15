@@ -52,7 +52,39 @@ const UPGRADES = [
         tooltip: 'Increases your maximum inventory capacity. Hold more stock to serve more customers!',
         baseCost: 40,
         effect: 50
+    },
+    {
+        id: 'market_research',
+        name: 'Market Research',
+        desc: 'Reveals avg competitor price',
+        tooltip: 'Unlocks the Market Intel panel. Shows you what competitors are charging so you can price strategically!',
+        baseCost: 150,
+        effect: 1
+    },
+    {
+        id: 'intel_network',
+        name: 'Intel Network',
+        desc: 'Shows estimated customer demand',
+        tooltip: 'Reveals how many customers are likely to visit today based on weather and your reputation!',
+        baseCost: 200,
+        effect: 1
+    },
+    {
+        id: 'supply_insight',
+        name: 'Supply Insight',
+        desc: 'Shows rival stock levels (approx)',
+        tooltip: 'Reveals whether city competitors are likely to run out of stock \u2014 your opportunity to capture their customers!',
+        baseCost: 250,
+        effect: 1
     }
+];
+
+// Named NPC rival businesses for solo mode flavor
+const NPC_RIVALS = [
+    { name: "Karen's Fresh Squeeze", catchphrase: 'undercutting everyone' },
+    { name: 'FreshCo Beverages', catchphrase: 'always well-stocked' },
+    { name: 'The Citrus Cartel', catchphrase: 'dominating the corner' },
+    { name: "Dave's Discount Stand", catchphrase: 'fighting for the price floor' }
 ];
 
 // City-wide events that affect all players in a city
@@ -97,6 +129,6 @@ const CITY_CONFIG = {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         GAME_VERSION, WEATHER, WEATHER_POOL, CATASTROPHES, UPGRADES,
-        CITY_EVENTS, CHALLENGE_TYPES, VALIDATION, CITY_CONFIG
+        CITY_EVENTS, CHALLENGE_TYPES, VALIDATION, CITY_CONFIG, NPC_RIVALS
     };
 }
