@@ -63,6 +63,9 @@ function updateUI() {
     document.getElementById('rentCost').textContent = totalRent.toFixed(2);
     document.getElementById('utilCost').textContent = game.marketPrices.utilities.toFixed(2);
     document.getElementById('totalFixed').textContent = totalFixed.toFixed(2);
+    // Show hint about when utilities kick in
+    const utilHint = document.getElementById('utilHint');
+    if (utilHint) utilHint.textContent = game.day <= 5 ? '(starts Day 6)' : '';
 
     // Expansion panel
     const nextPrice = getNextLocationPrice();
@@ -105,7 +108,7 @@ function updateMarketPanel() {
         '<div>Utilities: $' + game.marketPrices.utilities.toFixed(2) + '/day</div>' +
     '</div>' +
     '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #0a0; color: #0a0; font-size: 0.8rem;">' +
-        '\uD83D\uDCA1 Location prices scale with your cash (max 350%). Rent = 10% of purchase price.' +
+        '\uD83D\uDCA1 Location prices scale exponentially with each purchase (1.7x per location). Rent = 10% of purchase price/day.' +
     '</div>';
     document.getElementById('marketPrices').innerHTML = html;
 }
@@ -137,6 +140,22 @@ function updatePriceMonitor() {
         text.style.color = '#ff0';
     } else {
         monitor.classList.add('hidden');
+    }
+
+    // City mode: show competitor price comparison
+    const cityEl = document.getElementById('priceMonitorCity');
+    if (cityEl) {
+        const { competitorAvgPrice } = calculatePriceFactors();
+        if (competitorAvgPrice !== null) {
+            monitor.classList.remove('hidden');
+            const diff = game.price - competitorAvgPrice;
+            cityEl.style.color = diff < 0 ? '#0f0' : (diff > 0.5 ? '#f00' : '#ff0');
+            cityEl.textContent = diff < 0
+                ? '\uD83C\uDFD9\uFE0F CITY: You are $' + Math.abs(diff).toFixed(2) + ' BELOW market avg ($' + competitorAvgPrice.toFixed(2) + ') \u2014 undercutting rivals!'
+                : '\uD83C\uDFD9\uFE0F CITY: You are $' + diff.toFixed(2) + ' ABOVE market avg ($' + competitorAvgPrice.toFixed(2) + ') \u2014 you may lose customers.';
+        } else {
+            cityEl.textContent = '';
+        }
     }
 }
 
@@ -186,6 +205,18 @@ function updateUpgradesTab() {
         const cost = Math.floor(upg.baseCost * Math.pow(1.5, currentLevel));
         const canAfford = game.cash >= cost;
 
+        // Show current active effect if owned
+        var activeEffect = '';
+        if (currentLevel > 0) {
+            switch (upg.id) {
+                case 'marketing':   activeEffect = 'Active: +' + (currentLevel * 15) + '% customers'; break;
+                case 'quality':     activeEffect = 'Active: +' + (currentLevel * 10) + '% effective price'; break;
+                case 'efficiency':  activeEffect = 'Active: -' + (currentLevel * 10) + '% material cost'; break;
+                case 'storage':     activeEffect = 'Active: +' + (currentLevel * 50) + ' max inventory'; break;
+                default:            activeEffect = 'Active: Market Intel panel unlocked'; break;
+            }
+        }
+
         html += '<div style="border: 1px solid ' + (canAfford ? '#0f0' : '#0a0') + '; padding: 1rem; margin-bottom: 1rem; background: rgba(0,255,0,0.05);">' +
             '<div style="font-weight: bold; font-size: 1.1rem; color: #0ff; margin-bottom: 0.5rem;">' +
                 upg.name + ' (Level ' + currentLevel + ')' +
@@ -194,6 +225,7 @@ function updateUpgradesTab() {
             '<div style="font-size: 0.8rem; color: #ff0; margin-bottom: 0.5rem; font-style: italic; border-left: 2px solid #ff0; padding-left: 0.5rem;">' +
                 '\u2139\uFE0F ' + upg.tooltip +
             '</div>' +
+            (currentLevel > 0 ? '<div style="font-size: 0.8rem; color: #0f0; margin-bottom: 0.5rem; padding: 0.3rem; background: rgba(0,255,0,0.08); border-left: 2px solid #0f0;">\u2705 ' + activeEffect + '</div>' : '') +
             '<div style="margin-bottom: 0.5rem; color: #ff0;">' +
                 'Cost: $' + cost + ' ' + (canAfford ? '\u2705' : '\u274C Not enough cash!') +
             '</div>' +
@@ -332,6 +364,7 @@ const DAY_TIPS = {
     2: '\uD83D\uDCA1 TIP: Buy inventory BEFORE starting your day to avoid running out of stock!',
     3: '\uD83D\uDCA1 TIP: Check the UPGRADES tab \u2014 Marketing gives +15% more customers every day!',
     4: '\uD83D\uDCA1 TIP: Join the MULTIPLAYER tab to compete with real players in a shared city!',
+    5: '\u26A0\uFE0F HEADS UP: Starting TOMORROW (Day 6), you will be charged $5/day for utilities. Plan your cash accordingly!',
     7: '\uD83D\uDCA1 TIP: Reputation grows with profit. Higher rep = more customers + higher max price.',
     10: '\uD83D\uDCA1 TIP: Expand! Buy a second location (BUSINESS tab) for +30% more customers.',
     15: '\uD83D\uDCA1 TIP: Enable Auto-Buy in the restock panel to automatically restock between days.'
@@ -343,6 +376,38 @@ function checkDayTip() {
         setTimeout(function() { showNotif(tip, 'success'); }, 1500);
         localStorage.setItem('tip_day_' + game.day, '1');
     }
+}
+
+// Achievements tab renderer
+function updateAchievementsTab() {
+    if (typeof ACHIEVEMENTS === 'undefined') return;
+    const container = document.getElementById('achievementsContent');
+    if (!container) return;
+
+    const unlocked = ACHIEVEMENTS.filter(function(a) { return game.achievements && game.achievements[a.id]; });
+    const locked = ACHIEVEMENTS.filter(function(a) { return !game.achievements || !game.achievements[a.id]; });
+
+    let html = '<div style="color: #ff0; margin-bottom: 0.75rem; font-size: 1rem;">' +
+        unlocked.length + ' / ' + ACHIEVEMENTS.length + ' UNLOCKED' +
+    '</div>';
+
+    unlocked.forEach(function(ach) {
+        html += '<div style="border: 1px solid #0f0; padding: 0.75rem; margin-bottom: 0.5rem; background: rgba(0,255,0,0.08);">' +
+            '<div><span style="font-size: 1.2rem;">' + ach.icon + '</span> <strong style="color: #0f0;">' + ach.name + '</strong></div>' +
+            '<div style="font-size: 0.8rem; color: #0a0; margin-top: 0.2rem;">' + ach.desc + '</div>' +
+            (ach.reward && ach.reward.cash ? '<div style="font-size: 0.75rem; color: #ff0; margin-top: 0.2rem;">\uD83D\uDCB0 Reward: +$' + ach.reward.cash + ' (collected)</div>' : '') +
+        '</div>';
+    });
+
+    locked.forEach(function(ach) {
+        html += '<div style="border: 1px solid #0a0; padding: 0.75rem; margin-bottom: 0.5rem; opacity: 0.4;">' +
+            '<div><span style="font-size: 1.2rem;">\uD83D\uDD12</span> <strong style="color: #0a0;">' + ach.name + '</strong></div>' +
+            '<div style="font-size: 0.8rem; color: #0a0; margin-top: 0.2rem;">' + ach.desc + '</div>' +
+            (ach.reward && ach.reward.cash ? '<div style="font-size: 0.75rem; color: #0a0; margin-top: 0.2rem;">\uD83D\uDCB0 Reward: +$' + ach.reward.cash + '</div>' : '') +
+        '</div>';
+    });
+
+    container.innerHTML = html;
 }
 
 function switchTab(tabName) {
@@ -367,5 +432,8 @@ function switchTab(tabName) {
     }
     if (tabName === 'multiplayer' && typeof updateMultiplayerUI === 'function') {
         updateMultiplayerUI();
+    }
+    if (tabName === 'achievements') {
+        updateAchievementsTab();
     }
 }
