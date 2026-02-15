@@ -83,6 +83,9 @@ function updateUI() {
         updateMultiplayerUI();
     }
 
+    // Update market intel panel if upgrades purchased
+    updateMarketIntelPanel();
+
     saveGame();
 }
 
@@ -203,51 +206,142 @@ function updateUpgradesTab() {
 }
 
 function showReport(customers, served, revenue, expenses, profit, reason, catastrophe, breakdown) {
-    document.getElementById('reportPanel').classList.remove('hidden');
+    const panel = document.getElementById('reportPanel');
+    panel.classList.remove('hidden');
+
+    // Hide all sections initially for staged reveal
+    const revealIds = ['reportCust', 'reportRev', 'reportExp', 'reportProfit', 'expenseBreakdown', 'reportEvent', 'reportReason'];
+    revealIds.forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; }
+    });
+
+    // Step 1 (immediate): Day number + catastrophe event reveal
     document.getElementById('reportDay').textContent = game.day;
-    document.getElementById('reportCust').textContent = served === customers ? served : served + '/' + customers;
-    document.getElementById('reportRev').textContent = '$' + revenue.toFixed(2);
-    document.getElementById('reportExp').textContent = '$' + expenses.toFixed(2);
-
-    const profitEl = document.getElementById('reportProfit');
-    profitEl.textContent = (profit >= 0 ? '+' : '') + '$' + profit.toFixed(2);
-    profitEl.style.color = profit >= 0 ? '#0f0' : '#f00';
-
-    if (profit > 0) {
-        showFloatingText('+$' + profit.toFixed(2), window.innerWidth / 2, 200, '#0f0');
-    } else if (profit < 0) {
-        showFloatingText('-$' + Math.abs(profit).toFixed(2), window.innerWidth / 2, 200, '#f00');
-    }
-
-    document.getElementById('rentUsed').textContent = (breakdown.rent || 0).toFixed(2);
-    document.getElementById('utilUsed').textContent = (breakdown.utilities || 0).toFixed(2);
-
-    if (catastrophe && breakdown.catastrophe > 0) {
-        document.getElementById('catastropheCostDiv').classList.remove('hidden');
-        document.getElementById('catastropheCost').textContent = breakdown.catastrophe.toFixed(2);
-    } else {
-        document.getElementById('catastropheCostDiv').classList.add('hidden');
-    }
-
     if (catastrophe) {
-        document.getElementById('reportEvent').classList.remove('hidden');
+        const evEl = document.getElementById('reportEvent');
+        evEl.classList.remove('hidden');
         let txt = catastrophe.message;
-        if (catastrophe.cashLoss > 0) txt += '\n-$' + catastrophe.cashLoss.toFixed(2);
-        if (catastrophe.invLoss > 0) txt += '\n-' + catastrophe.invLoss + ' units';
-        if (catastrophe.repLoss > 0) txt += '\n-' + catastrophe.repLoss + ' rep';
+        if (catastrophe.cashLoss > 0) txt += ' -$' + catastrophe.cashLoss.toFixed(2);
+        if (catastrophe.invLoss > 0) txt += ' -' + catastrophe.invLoss + ' units';
+        if (catastrophe.repLoss > 0) txt += ' -' + catastrophe.repLoss + ' rep';
         document.getElementById('eventText').textContent = txt;
+        setTimeout(function() { evEl.style.opacity = '1'; }, 50);
     } else {
         document.getElementById('reportEvent').classList.add('hidden');
     }
 
-    if (reason) {
-        document.getElementById('reportReason').classList.remove('hidden');
-        document.getElementById('reasonText').textContent = reason;
+    // Step 2 (600ms): Revenue / profit numbers
+    setTimeout(function() {
+        document.getElementById('reportCust').textContent = served === customers ? served : served + '/' + customers;
+        document.getElementById('reportRev').textContent = '$' + revenue.toFixed(2);
+        document.getElementById('reportExp').textContent = '$' + expenses.toFixed(2);
+        const profitEl = document.getElementById('reportProfit');
+        profitEl.textContent = (profit >= 0 ? '+' : '') + '$' + profit.toFixed(2);
+        profitEl.style.color = profit >= 0 ? '#0f0' : '#f00';
+        ['reportCust', 'reportRev', 'reportExp', 'reportProfit'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.opacity = '1';
+        });
+        if (profit > 0) showFloatingText('+$' + profit.toFixed(2), window.innerWidth / 2, 200, '#0f0');
+        else if (profit < 0) showFloatingText('-$' + Math.abs(profit).toFixed(2), window.innerWidth / 2, 200, '#f00');
+    }, 600);
+
+    // Step 3 (1200ms): Expense breakdown
+    setTimeout(function() {
+        document.getElementById('rentUsed').textContent = (breakdown.rent || 0).toFixed(2);
+        document.getElementById('utilUsed').textContent = (breakdown.utilities || 0).toFixed(2);
+        if (catastrophe && breakdown.catastrophe > 0) {
+            document.getElementById('catastropheCostDiv').classList.remove('hidden');
+            document.getElementById('catastropheCost').textContent = breakdown.catastrophe.toFixed(2);
+        } else {
+            document.getElementById('catastropheCostDiv').classList.add('hidden');
+        }
+        const bkEl = document.getElementById('expenseBreakdown');
+        if (bkEl) bkEl.style.opacity = '1';
+    }, 1200);
+
+    // Step 4 (1800ms): Analysis reason
+    setTimeout(function() {
+        if (reason) {
+            const rEl = document.getElementById('reportReason');
+            rEl.classList.remove('hidden');
+            document.getElementById('reasonText').textContent = reason;
+            rEl.style.opacity = '1';
+        }
+        if (typeof mpState !== 'undefined' && mpState.mode === 'city' && mpState.cityRank) {
+            addLog('MP', '\uD83C\uDFE2 City rank: #' + mpState.cityRank);
+        }
+    }, 1800);
+}
+
+// Market intel panel — shows info based on purchased intel upgrades
+function updateMarketIntelPanel() {
+    const panel = document.getElementById('marketIntelPanel');
+    if (!panel) return;
+
+    const mrLevel = game.upgrades.market_research || 0;
+    const intelLevel = game.upgrades.intel_network || 0;
+    const supplyLevel = game.upgrades.supply_insight || 0;
+
+    if (mrLevel === 0 && intelLevel === 0 && supplyLevel === 0) {
+        panel.classList.add('hidden');
+        return;
+    }
+    panel.classList.remove('hidden');
+
+    let html = '<div style="color:#0ff; font-weight:bold; margin-bottom:0.5rem;">\uD83D\uDCCA MARKET INTEL</div>';
+
+    if (mrLevel > 0) {
+        const avgPrice = (typeof mpState !== 'undefined' && mpState.connected && mpState.cityAvgPrice > 0)
+            ? mpState.cityAvgPrice
+            : game.marketPrices.materials * 3;
+        html += '<div style="margin-bottom:0.3rem;">\uD83D\uDD0D Avg Market Price: <strong style="color:#0ff;">$' + avgPrice.toFixed(2) + '</strong></div>';
+        if (mrLevel >= 2) {
+            const cmp = game.price < avgPrice ? '<span style="color:#0f0">UNDERCUT \u2713</span>' : '<span style="color:#f00">ABOVE MARKET</span>';
+            html += '<div style="margin-bottom:0.3rem;">\uD83D\uDCC8 Your price vs market: <strong>' + cmp + '</strong></div>';
+        }
+        if (mrLevel >= 3) {
+            const { idealPrice } = calculatePriceFactors();
+            html += '<div style="margin-bottom:0.3rem;">\uD83C\uDFAF Ideal price estimate: <strong style="color:#0ff;">$' + idealPrice.toFixed(2) + '</strong></div>';
+        }
     }
 
-    // Show city rank in report if in city mode
-    if (typeof mpState !== 'undefined' && mpState.mode === 'city' && mpState.cityRank) {
-        addLog('MP', '\uD83C\uDFE2 City rank: #' + mpState.cityRank);
+    if (intelLevel > 0) {
+        const weatherMult = WEATHER[game.weather].mult;
+        const repMult = 1.0 + (game.reputation / 50);
+        const minEst = Math.floor(5 * weatherMult);
+        const maxEst = Math.floor(20 * weatherMult * repMult * (1 + (game.upgrades.marketing || 0) * 0.15));
+        html += '<div style="margin-bottom:0.3rem;">\uD83D\uDC65 Est. customer demand: <strong style="color:#ff0;">~' + minEst + '\u2013' + maxEst + ' visitors</strong></div>';
+        if (intelLevel >= 2) {
+            const priceOk = game.price <= calculatePriceFactors().maxReasonablePrice;
+            html += '<div style="margin-bottom:0.3rem;">\uD83D\uDCB0 Price attractiveness: <strong style="color:' + (priceOk ? '#0f0' : '#f00') + '">' + (priceOk ? 'GOOD \u2713' : 'TOO HIGH \u26A0') + '</strong></div>';
+        }
+    }
+
+    if (supplyLevel > 0 && typeof mpState !== 'undefined' && mpState.competitorPrices && mpState.competitorPrices.length > 0) {
+        const stockOutChance = Math.random() > 0.55;
+        html += '<div style="margin-bottom:0.3rem;">\uD83D\uDCE6 Rivals likely to stock out: <strong style="color:' + (stockOutChance ? '#0f0' : '#ff0') + '">' + (stockOutChance ? 'YES \u2014 opportunity!' : 'No') + '</strong></div>';
+    }
+
+    panel.innerHTML = html;
+}
+
+// Progressive day-based tips (shown once per milestone via toast)
+const DAY_TIPS = {
+    2: '\uD83D\uDCA1 TIP: Buy inventory BEFORE starting your day to avoid running out of stock!',
+    3: '\uD83D\uDCA1 TIP: Check the UPGRADES tab \u2014 Marketing gives +15% more customers every day!',
+    4: '\uD83D\uDCA1 TIP: Join the MULTIPLAYER tab to compete with real players in a shared city!',
+    7: '\uD83D\uDCA1 TIP: Reputation grows with profit. Higher rep = more customers + higher max price.',
+    10: '\uD83D\uDCA1 TIP: Expand! Buy a second location (BUSINESS tab) for +30% more customers.',
+    15: '\uD83D\uDCA1 TIP: Enable Auto-Buy in the restock panel to automatically restock between days.'
+};
+
+function checkDayTip() {
+    const tip = DAY_TIPS[game.day];
+    if (tip && !localStorage.getItem('tip_day_' + game.day)) {
+        setTimeout(function() { showNotif(tip, 'success'); }, 1500);
+        localStorage.setItem('tip_day_' + game.day, '1');
     }
 }
 
