@@ -51,8 +51,26 @@
     <link rel="stylesheet" href="multiplayer.css">
 </head>
 <body>
+
+    <!-- Mode Selection Screen (shown on first visit) -->
+    <div id="modeSelectScreen" style="display:none; position:fixed; inset:0; background:#000; z-index:3000; flex-direction:column; align-items:center; justify-content:center; gap:1.5rem; padding:2rem; text-align:center;">
+        <div style="font-size:3rem;">🏪</div>
+        <h1 style="color:#0f0; font-size:2rem; margin:0;">BUSINESS EMPIRE</h1>
+        <p style="color:#0a0; max-width:400px; margin:0;">Grow your tiny lemonade stand into a market-dominating empire. Undercut rivals. Dominate the city.</p>
+        <div style="display:flex; flex-direction:column; gap:1rem; width:100%; max-width:320px;">
+            <button onclick="selectMode('solo')" style="font-size:1.1rem; padding:1rem 2rem; border-color:#0f0; color:#0f0;">
+                🏠 SOLO TYCOON MODE
+            </button>
+            <button onclick="selectMode('online')" style="font-size:1.1rem; padding:1rem 2rem; border-color:#0ff; color:#0ff;">
+                🌐 ONLINE CITY COMPETITION
+            </button>
+        </div>
+        <p style="color:#0a0; font-size:0.75rem; margin:0;">Online mode requires internet. Falls back to solo if unavailable.</p>
+    </div>
+
     <div class="container">
         <h1 id="businessName" style="cursor: pointer;">█▓▒░ LEMONADE STAND ░▒▓█</h1>
+        <div style="text-align:center; font-size:0.7rem; color:#0a0; margin-bottom:0.3rem; letter-spacing:1px;">Undercut rivals. Grow your empire. Dominate the city.</div>
         <div class="header-info">
             <span id="headerInfo">Level 1 • Day 1 • ☀️ SUNNY • 1 Location</span>
             <span id="mpStatus" class="mp-status offline" style="margin-left: 0.5rem;">
@@ -115,6 +133,8 @@
                 <div id="priceMonitor" class="hidden" style="padding: 0.5rem; margin: 0.5rem 0; border: 1px solid #ff0; background: rgba(255,255,0,0.1); font-size: 0.75rem;">
                     <span id="priceMonitorText" style="color: #ff0;"></span>
                 </div>
+                <!-- Market Intel Panel — visible once intel upgrades purchased -->
+                <div id="marketIntelPanel" class="hidden" style="padding: 0.5rem; margin: 0.5rem 0; border: 1px solid #0ff; background: rgba(0,255,255,0.05); font-size: 0.8rem;"></div>
                 <div class="stat-row">
                     <span>⭐ Reputation:</span>
                     <span id="reputation" class="highlight">0</span>
@@ -237,6 +257,9 @@
                 </p>
                 <button id="joinCityBtn" class="join-city-btn" onclick="joinCity()">
                     🏙️ JOIN ANY CITY
+                </button>
+                <button onclick="createPrivateCity()" style="border-color:#0ff; color:#0ff; margin-top:0.5rem; width:100%;">
+                    🔒 CREATE PRIVATE CITY
                 </button>
                 <div id="joinCodeRow" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                     <span style="color: #0a0; font-size: 0.8rem; white-space: nowrap;">OR JOIN WITH CODE:</span>
@@ -439,6 +462,20 @@
             <button onclick="closeWelcome()" style="border-color: #0ff; color: #0ff; font-size: 1.1rem;">
                 🚀 LET'S START BUILDING!
             </button>
+        </div>
+    </div>
+
+    <!-- Upgrade Soft-Lock Warning Modal -->
+    <div id="upgradeWarnModal" class="modal hidden">
+        <div class="modal-content" style="border-color: #f90;">
+            <h2 style="color: #f90; text-align: center; margin-bottom: 1rem;">⚠️ LOW CASH WARNING</h2>
+            <p style="margin-bottom: 0.75rem;">This upgrade costs <strong style="color:#fff;">$<span id="upgradeWarnCost">0</span></strong>.</p>
+            <p style="margin-bottom: 0.75rem;">After buying, you'll have <strong style="color: #f00;">$<span id="upgradeWarnCashAfter">0</span></strong> left — which may not be enough to restock inventory (need <strong>$<span id="upgradeWarnMinStock">0</span></strong> for 10 units).</p>
+            <p style="color: #f90; font-weight: bold; margin-bottom: 1rem;">You might get stuck with no inventory next day!</p>
+            <div class="grid-2">
+                <button onclick="cancelUpgrade()">← CANCEL</button>
+                <button onclick="confirmUpgrade()" style="border-color: #f90; color: #f90;">BUY ANYWAY →</button>
+            </div>
         </div>
     </div>
 
