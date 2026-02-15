@@ -4,10 +4,10 @@
 const GAME_VERSION = '3.0.0';
 
 const WEATHER = {
-    sunny: { mult: 1.2, icon: '\u2600\uFE0F', name: 'SUNNY' },
-    cloudy: { mult: 1.0, icon: '\u2601\uFE0F', name: 'CLOUDY' },
-    rainy: { mult: 0.6, icon: '\uD83C\uDF27\uFE0F', name: 'RAINY' },
-    heatwave: { mult: 1.8, icon: '\uD83D\uDD25', name: 'HEATWAVE' }
+    sunny: { mult: 1.2, icon: '☀️', name: 'SUNNY' },
+    cloudy: { mult: 1.0, icon: '☁️', name: 'CLOUDY' },
+    rainy: { mult: 0.6, icon: '🌧️', name: 'RAINY' },
+    heatwave: { mult: 1.8, icon: '🔥', name: 'HEATWAVE' }
 };
 
 const WEATHER_POOL = ['sunny', 'sunny', 'cloudy', 'rainy', 'heatwave'];
@@ -73,7 +73,7 @@ const UPGRADES = [
         id: 'supply_insight',
         name: 'Supply Insight',
         desc: 'Shows rival stock levels (approx)',
-        tooltip: 'Reveals whether city competitors are likely to run out of stock \u2014 your opportunity to capture their customers!',
+        tooltip: 'Reveals whether city competitors are likely to run out of stock — your opportunity to capture their customers!',
         baseCost: 250,
         effect: 1
     }
@@ -89,11 +89,11 @@ const NPC_RIVALS = [
 
 // City-wide events that affect all players in a city
 const CITY_EVENTS = [
-    { id: 'festival', name: 'City Festival', mult: 1.5, duration: 3, message: '+50% customers for 3 days!', icon: '\uD83C\uDF89' },
-    { id: 'recession', name: 'Economic Recession', mult: 0.7, duration: 5, message: '-30% customer pool for 5 days!', icon: '\uD83D\uDCC9' },
-    { id: 'supply_shortage', name: 'Supply Shortage', materialMult: 2.0, duration: 2, message: 'Material costs doubled for 2 days!', icon: '\uD83D\uDEA8' },
-    { id: 'health_scare', name: 'Health Scare', repLoss: 10, duration: 1, message: 'All businesses lose 10 reputation!', icon: '\u26A0\uFE0F' },
-    { id: 'tourist_season', name: 'Tourist Season', mult: 1.8, priceSensitivity: 1.5, duration: 4, message: '+80% customers but they\'re pickier about price!', icon: '\uD83C\uDFD6\uFE0F' }
+    { id: 'festival', name: 'City Festival', mult: 1.5, duration: 3, message: '+50% customers for 3 days!', icon: '🎉' },
+    { id: 'recession', name: 'Economic Recession', mult: 0.7, duration: 5, message: '-30% customer pool for 5 days!', icon: '📉' },
+    { id: 'supply_shortage', name: 'Supply Shortage', materialMult: 2.0, duration: 2, message: 'Material costs doubled for 2 days!', icon: '🚨' },
+    { id: 'health_scare', name: 'Health Scare', repLoss: 10, duration: 1, message: 'All businesses lose 10 reputation!', icon: '⚠️' },
+    { id: 'tourist_season', name: 'Tourist Season', mult: 1.8, priceSensitivity: 1.5, duration: 4, message: '+80% customers but they\'re pickier about price!', icon: '🏖️' }
 ];
 
 // Challenge templates for daily challenge generation
@@ -120,18 +120,17 @@ const CITY_CONFIG = {
     MIN_PLAYERS: 5,
     MAX_PLAYERS: 30,
     BASE_CUSTOMER_POOL: 100,
-    CITY_EVENT_CHANCE: 0.08,  // 8% per city day
+    CITY_EVENT_CHANCE: 0.08,
     ECONOMY_MIN: 0.7,
     ECONOMY_MAX: 1.3
 };
 
-// Achievements — unlocked by meeting conditions, grant one-time cash rewards
-// Conditions use function(g) style to receive game state as parameter (safe for server-side)
+// Achievements
 const ACHIEVEMENTS = [
     {
         id: 'first_profit',
         name: 'First Dollar',
-        icon: '\uD83D\uDCB0',
+        icon: '💰',
         desc: 'Earn your first profit day',
         condition: function(g) { return g.totalRevenue > 0 && g.streak >= 1; },
         reward: { cash: 10 }
@@ -139,7 +138,7 @@ const ACHIEVEMENTS = [
     {
         id: 'reputation_50',
         name: 'Getting Known',
-        icon: '\u2B50',
+        icon: '⭐',
         desc: 'Reach 50 reputation',
         condition: function(g) { return g.reputation >= 50; },
         reward: { cash: 25 }
@@ -147,7 +146,7 @@ const ACHIEVEMENTS = [
     {
         id: 'reputation_200',
         name: 'Local Legend',
-        icon: '\uD83C\uDF1F',
+        icon: '🌟',
         desc: 'Reach 200 reputation',
         condition: function(g) { return g.reputation >= 200; },
         reward: { cash: 100 }
@@ -155,7 +154,7 @@ const ACHIEVEMENTS = [
     {
         id: 'second_location',
         name: 'Expanding Empire',
-        icon: '\uD83C\uDFE2',
+        icon: '🏢',
         desc: 'Buy your second location',
         condition: function(g) { return g.locations && g.locations.length >= 2; },
         reward: { cash: 50 }
@@ -163,7 +162,7 @@ const ACHIEVEMENTS = [
     {
         id: 'streak_5',
         name: 'On a Roll',
-        icon: '\uD83D\uDD25',
+        icon: '🔥',
         desc: 'Achieve a 5-day profit streak',
         condition: function(g) { return g.streak >= 5; },
         reward: { cash: 30 }
@@ -171,7 +170,7 @@ const ACHIEVEMENTS = [
     {
         id: 'streak_10',
         name: 'Unstoppable',
-        icon: '\uD83D\uDE80',
+        icon: '🚀',
         desc: 'Achieve a 10-day profit streak',
         condition: function(g) { return g.streak >= 10; },
         reward: { cash: 75 }
@@ -179,7 +178,7 @@ const ACHIEVEMENTS = [
     {
         id: 'total_revenue_500',
         name: 'Half-Grand',
-        icon: '\uD83D\uDCB5',
+        icon: '💵',
         desc: 'Earn $500 total revenue',
         condition: function(g) { return g.totalRevenue >= 500; },
         reward: { cash: 50 }
@@ -187,7 +186,7 @@ const ACHIEVEMENTS = [
     {
         id: 'level_5',
         name: 'Level Up',
-        icon: '\u26A1',
+        icon: '⚡',
         desc: 'Reach Level 5',
         condition: function(g) { return g.level >= 5; },
         reward: { cash: 100 }
