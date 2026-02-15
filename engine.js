@@ -29,7 +29,7 @@ function triggerCatastrophe() {
     game.reputation = Math.max(0, game.reputation - c.repLoss);
     game.lastCatastropheDay = game.day;
 
-    addLog('CATASTROPHE', '\uD83D\uDCA5 ' + c.name + '! ' + c.message);
+    addLog('CATASTROPHE', '💥 ' + c.name + '! ' + c.message);
     let impacts = [];
     if (cashLoss > 0) impacts.push('-$' + cashLoss.toFixed(2));
     if (invLoss > 0) impacts.push('-' + invLoss + ' units');
@@ -47,21 +47,34 @@ function calculateTotalRent() {
     return game.locations.reduce((sum, loc) => sum + (loc.rentPerDay || 0), 0);
 }
 
-function getNextLocationPrice() {
-    const basedOnCash = Math.min(game.cash * 3.5, 999999);
+// Compute deterministic next location price — no randomness, no cash cap
+// Scales: 2500 → 4250 → 7225 → 12282 → 20880...
+function computeNextLocationPrice() {
     const locationCount = game.locations.length;
     const basePrice = 2500;
-    const priceIncrease = basePrice * Math.pow(1.5 + (Math.random() * 0.5), locationCount - 1);
-    return Math.max(basePrice, Math.min(basedOnCash, priceIncrease));
+    return Math.floor(basePrice * Math.pow(1.7, locationCount - 1));
+}
+
+// Returns stable pre-computed price stored in game state
+function getNextLocationPrice() {
+    return game.nextLocationPrice || 2500;
 }
 
 function calculatePriceFactors() {
     const materialCost = game.marketPrices.materials;
+    // Weather adjusts ideal price: heatwave = customers tolerate higher prices
+    const weatherMult = WEATHER[game.weather] ? WEATHER[game.weather].mult : 1.0;
+    const demandIndex = Math.min(weatherMult, 1.5); // cap influence at 1.5x
     const minFairPrice = materialCost * 1.3;
-    const idealPrice = materialCost * 3;
+    const idealPrice = materialCost * 3 * (0.7 + demandIndex * 0.3);
     const maxReasonablePrice = Math.max(3, (game.reputation / 8) + idealPrice);
     const tooExpensivePrice = maxReasonablePrice * 2;
-    return { materialCost, minFairPrice, idealPrice, maxReasonablePrice, tooExpensivePrice };
+    // City mode: competitor average price as reference for price bar UI
+    let competitorAvgPrice = null;
+    if (typeof mpState !== 'undefined' && mpState.mode === 'city' && mpState.cityAvgPrice > 0) {
+        competitorAvgPrice = mpState.cityAvgPrice;
+    }
+    return { materialCost, minFairPrice, idealPrice, maxReasonablePrice, tooExpensivePrice, weatherMult, competitorAvgPrice };
 }
 
 function calculatePriceImpact() {
@@ -72,20 +85,20 @@ function calculatePriceImpact() {
 
     if (game.price < minFairPrice) {
         priceImpact = 0.5;
-        priceReason = '\u26A0\uFE0F Your price ($' + game.price.toFixed(2) + ') is too low! Customers think it\'s poor quality. Min recommended: $' + minFairPrice.toFixed(2);
+        priceReason = '⚠️ Your price ($' + game.price.toFixed(2) + ') is too low! Customers think it\'s poor quality. Min recommended: $' + minFairPrice.toFixed(2);
     } else if (game.price > tooExpensivePrice) {
         priceImpact = 0;
-        priceReason = '\uD83D\uDEAB Your price ($' + game.price.toFixed(2) + ') is WAY TOO HIGH! Almost no customers at this price. Max reasonable: $' + maxReasonablePrice.toFixed(2);
+        priceReason = '🚫 Your price ($' + game.price.toFixed(2) + ') is WAY TOO HIGH! Almost no customers at this price. Max reasonable: $' + maxReasonablePrice.toFixed(2);
     } else if (game.price > maxReasonablePrice) {
         const excessPercent = (game.price - maxReasonablePrice) / maxReasonablePrice;
         priceImpact = Math.max(0.1, 1.0 - excessPercent);
-        priceReason = '\u26A0\uFE0F Your price ($' + game.price.toFixed(2) + ') is too high for your reputation (' + game.reputation + '). Recommended max: $' + maxReasonablePrice.toFixed(2);
+        priceReason = '⚠️ Your price ($' + game.price.toFixed(2) + ') is too high for your reputation (' + game.reputation + '). Recommended max: $' + maxReasonablePrice.toFixed(2);
     } else if (game.price > idealPrice * 1.5) {
         priceImpact = 0.7;
-        priceReason = '\uD83D\uDCCA Your price ($' + game.price.toFixed(2) + ') is on the high side. Some customers are deterred.';
+        priceReason = '📊 Your price ($' + game.price.toFixed(2) + ') is on the high side. Some customers are deterred.';
     } else if (game.price >= minFairPrice && game.price <= idealPrice * 1.3) {
         priceImpact = 1.0;
-        priceReason = '\u2705 Your price ($' + game.price.toFixed(2) + ') is in the sweet spot!';
+        priceReason = '✅ Your price ($' + game.price.toFixed(2) + ') is in the sweet spot!';
     }
 
     return { priceImpact, priceReason, maxReasonablePrice };
@@ -97,7 +110,7 @@ async function processDay() {
     if (shouldTriggerCatastrophe()) {
         catastrophe = triggerCatastrophe();
         catastropheCost = catastrophe.cashLoss;
-        showNotif('\uD83D\uDCA5 ' + catastrophe.name + '!', 'error');
+        showNotif('💥 ' + catastrophe.name + '!', 'error');
     }
 
     let customers;
@@ -105,7 +118,6 @@ async function processDay() {
     const { priceImpact, priceReason, maxReasonablePrice } = calculatePriceImpact();
 
     if (typeof mpState !== 'undefined' && mpState.mode === 'city' && mpState.connected) {
-        // MULTIPLAYER: Submit to server, get customer allocation from city economy
         try {
             cityData = await api.submitCityDay(mpState.cityId, {
                 playerId: mpState.playerId,
@@ -119,7 +131,6 @@ async function processDay() {
             customers = cityData.customerPoolShare;
             game.weather = cityData.cityWeather || game.weather;
 
-            // Update city state
             if (cityData.cityAvgPrice) mpState.cityAvgPrice = cityData.cityAvgPrice;
             if (cityData.competitorPrices) mpState.competitorPrices = cityData.competitorPrices;
             if (cityData.cityRank) mpState.cityRank = cityData.cityRank;
@@ -128,7 +139,6 @@ async function processDay() {
             customers = calculateLocalCustomers(priceImpact);
         }
     } else {
-        // SOLO: Original local calculation
         customers = calculateLocalCustomers(priceImpact);
     }
 
@@ -150,32 +160,30 @@ async function processDay() {
     let repChange = profit > 0 ? 1 : -2;
     if (game.reputation < 25 && profit > 0) {
         repChange += 3;
-        if (game.day <= 5) addLog('ANALYSIS', '\uD83C\uDF1F NEW BUSINESS BONUS!');
+        if (game.day <= 5) addLog('ANALYSIS', '🌟 NEW BUSINESS BONUS!');
     }
     if (served < customers) {
         repChange -= 5;
-        addLog('ANALYSIS', '\u274C STOCKOUT: Lost ' + (customers - served) + ' customers! (-5 rep)');
+        addLog('ANALYSIS', '❌ STOCKOUT: Lost ' + (customers - served) + ' customers! (-5 rep)');
     }
     if (served > game.bestDay) {
         game.bestDay = served;
         repChange += 3;
-        addLog('ANALYSIS', '\u2728 NEW RECORD: ' + served + ' customers! (+3 rep)');
+        addLog('ANALYSIS', '✨ NEW RECORD: ' + served + ' customers! (+3 rep)');
     }
 
     game.reputation = Math.max(0, game.reputation + repChange);
     game.streak = profit > 0 ? game.streak + 1 : 0;
 
-    // Log price impact if significant
-    const customersBeforePricing = customers; // approximate
     if (priceImpact < 0.95) {
         addLog('ANALYSIS', priceReason);
         if (customers === 0) {
-            addLog('ERROR', '\uD83D\uDC94 ZERO CUSTOMERS due to pricing!');
+            addLog('ERROR', '💔 ZERO CUSTOMERS due to pricing!');
         }
     }
 
     let reason = buildDayReason(customers, priceImpact, maxReasonablePrice);
-    addLog('ANALYSIS', '\uD83D\uDCA1 ' + reason);
+    addLog('ANALYSIS', '💡 ' + reason);
 
     // Fluctuate market prices for next day
     game.marketPrices.materials = Math.max(0.15, Math.min(0.50, game.marketPrices.materials + (Math.random() * 0.1 - 0.05)));
@@ -188,6 +196,7 @@ async function processDay() {
     });
 
     checkLevelUp();
+    checkAchievements(); // Check achievements after level-up so level-based ones fire correctly
     if (game.cash < 0) game.cash = 0;
     game.day++;
     updateUI();
@@ -210,7 +219,7 @@ async function processDay() {
             if (result && result.rank) {
                 showNotif('Ranked #' + result.rank + ' today!', 'success');
                 if (result.rankChange && result.rankChange > 0) {
-                    showFloatingText('\u2B06 UP ' + result.rankChange + ' ranks!', window.innerWidth / 2, 100, '#0f0');
+                    showFloatingText('⬆ UP ' + result.rankChange + ' ranks!', window.innerWidth / 2, 100, '#0f0');
                 }
             }
         }).catch(() => {});
@@ -239,7 +248,7 @@ function buildDayReason(customers, priceImpact, maxReasonablePrice) {
         }
     } else if (customers < 3) {
         if (priceImpact < 0.5) {
-            return 'Very few customers (' + customers + ') \u2014 price too high.' + (rival ? ' ' + rival.name + ' is ' + rival.catchphrase + ' nearby.' : '');
+            return 'Very few customers (' + customers + ') — price too high.' + (rival ? ' ' + rival.name + ' is ' + rival.catchphrase + ' nearby.' : '');
         } else {
             return 'Low traffic.' + (rival ? ' ' + rival.name + ' is ' + rival.catchphrase + ' nearby.' : ' Reputation (' + game.reputation + ') needs work.');
         }
@@ -248,6 +257,28 @@ function buildDayReason(customers, priceImpact, maxReasonablePrice) {
     } else {
         return 'Steady customer flow. ' + (priceImpact < 0.95 ? 'Price is limiting some customers.' : 'Keep growing!');
     }
+}
+
+// Check all achievements and grant rewards for newly unlocked ones
+function checkAchievements() {
+    if (typeof ACHIEVEMENTS === 'undefined') return;
+    if (!game.achievements) game.achievements = {};
+    ACHIEVEMENTS.forEach(function(ach) {
+        if (game.achievements[ach.id]) return; // already unlocked
+        try {
+            if (ach.condition(game)) {
+                game.achievements[ach.id] = true;
+                if (ach.reward && ach.reward.cash) {
+                    game.cash += ach.reward.cash;
+                    addLog('UPGRADE', ach.icon + ' ACHIEVEMENT UNLOCKED: ' + ach.name + '! +$' + ach.reward.cash + ' bonus!');
+                } else {
+                    addLog('UPGRADE', ach.icon + ' ACHIEVEMENT UNLOCKED: ' + ach.name + '!');
+                }
+                showNotif(ach.icon + ' ' + ach.name + ' UNLOCKED!', 'success');
+                showFloatingText(ach.icon + ' ' + ach.name + '!', window.innerWidth / 2, 150, '#ff0');
+            }
+        } catch (e) { console.warn('Achievement check failed:', ach.id, e); }
+    });
 }
 
 function checkLevelUp() {
@@ -259,7 +290,7 @@ function checkLevelUp() {
         game.maxInventory += 20;
         const repBonus = game.level * 2;
         game.reputation += repBonus;
-        showNotif('\u26A1 LEVEL ' + game.level + '!', 'success');
-        addLog('SYSTEM', '\u25B2 LEVEL ' + game.level + '! +' + repBonus + ' rep, +20 inventory');
+        showNotif('⚡ LEVEL ' + game.level + '!', 'success');
+        addLog('SYSTEM', '▲ LEVEL ' + game.level + '! +' + repBonus + ' rep, +20 inventory');
     }
 }
