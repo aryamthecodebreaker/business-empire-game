@@ -191,6 +191,10 @@ async function processDay() {
     if (game.cash < 0) game.cash = 0;
     game.day++;
     updateUI();
+    // End-of-day auto-restock (after sales, before next day)
+    if (typeof doAutoBuy === 'function') doAutoBuy();
+    checkDayTip();
+    saveGame();
 
     // Submit day result for leaderboard
     if (typeof mpState !== 'undefined' && mpState.connected && typeof api !== 'undefined' && typeof api.submitDayResult === 'function') {
@@ -224,6 +228,7 @@ function calculateLocalCustomers(priceImpact) {
 }
 
 function buildDayReason(customers, priceImpact, maxReasonablePrice) {
+    const rival = typeof NPC_RIVALS !== 'undefined' ? NPC_RIVALS[Math.floor(Math.random() * NPC_RIVALS.length)] : null;
     if (customers === 0) {
         if (priceImpact < 0.1) {
             return 'NO CUSTOMERS! Your price ($' + game.price.toFixed(2) + ') is far too high. Recommended: $' + maxReasonablePrice.toFixed(2);
@@ -234,9 +239,9 @@ function buildDayReason(customers, priceImpact, maxReasonablePrice) {
         }
     } else if (customers < 3) {
         if (priceImpact < 0.5) {
-            return 'Very few customers (' + customers + ') because price ($' + game.price.toFixed(2) + ') is too high.';
+            return 'Very few customers (' + customers + ') \u2014 price too high.' + (rival ? ' ' + rival.name + ' is ' + rival.catchphrase + ' nearby.' : '');
         } else {
-            return 'Low traffic: ' + (game.weather === 'rainy' ? 'bad weather' : 'reputation (' + game.reputation + ') needs work') + '.';
+            return 'Low traffic.' + (rival ? ' ' + rival.name + ' is ' + rival.catchphrase + ' nearby.' : ' Reputation (' + game.reputation + ') needs work.');
         }
     } else if (customers > 15) {
         return WEATHER[game.weather].mult > 1.5 ? 'Excellent weather brought crowds!' : 'Great reputation (' + game.reputation + ') attracting customers!';
