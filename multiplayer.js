@@ -132,6 +132,21 @@ async function joinCity() {
     }
 }
 
+async function createPrivateCity() {
+    if (!mpState.connected) { showNotif('Not connected to server', 'error'); return; }
+    if (mpState.mode === 'city') { showNotif('Leave your current city first!', 'error'); return; }
+    showNotif('Creating private city\u2026', 'success');
+    const city = await api.createPrivateCity();
+    if (city) {
+        addLog('CITY', '\uD83C\uDFD9\uFE0F Created private city: ' + city.name + ' [Code: ' + city.join_code + ']');
+        showNotif('City created! Code: ' + city.join_code, 'success');
+        mpState.citySubscription = api.subscribeToCityFeed(mpState.cityId, handleCityEvent);
+        updateMultiplayerUI();
+    } else {
+        showNotif('Failed to create city', 'error');
+    }
+}
+
 async function joinCityWithCode() {
     if (!mpState.connected) {
         showNotif('Not connected to server', 'error');
