@@ -49,6 +49,11 @@ function buyLocation() {
     game.reputation += 10;
     game.maxInventory += 20;
 
+    // Pre-compute stable next location price so display doesn't flicker
+    if (typeof computeNextLocationPrice === 'function') {
+        game.nextLocationPrice = computeNextLocationPrice();
+    }
+
     addLog('BUSINESS', '🏢 BOUGHT Location #' + locationNum + ' for $' + price.toFixed(0));
     addLog('BUSINESS', '📍 Rent: $' + rentPerDay.toFixed(0) + '/day (+10 rep, +20 storage)');
     showNotif('Location #' + locationNum + ' purchased!', 'success');
@@ -86,6 +91,26 @@ function buyUpgrade(upgradeId) {
     _executeUpgrade(upgradeId);
 }
 
+// Returns human-readable description of what an upgrade does at a given new level
+function _describeUpgradeEffect(upgradeId, newLevel) {
+    switch (upgradeId) {
+        case 'marketing':
+            return 'Customers +' + (newLevel * 15) + '% total (was +' + ((newLevel - 1) * 15) + '%)';
+        case 'quality':
+            return 'Effective sell price now $' + (game.price * (1 + newLevel * 0.10)).toFixed(2) + ' (quality bonus +' + (newLevel * 10) + '%)';
+        case 'efficiency':
+            return 'Material cost reduced by ' + (newLevel * 10) + '% (save $' + (game.marketPrices.materials * newLevel * 0.10).toFixed(3) + '/unit)';
+        case 'storage':
+            return 'Max inventory now ' + game.maxInventory + ' units';
+        case 'market_research':
+        case 'intel_network':
+        case 'supply_insight':
+            return 'Market Intel panel unlocked — check the dashboard!';
+        default:
+            return 'Effect applied.';
+    }
+}
+
 function _executeUpgrade(upgradeId) {
     const upg = UPGRADES.find(function(u) { return u.id === upgradeId; });
     const currentLevel = game.upgrades[upgradeId] || 0;
@@ -101,8 +126,10 @@ function _executeUpgrade(upgradeId) {
     showFloatingText('⬆ UPGRADE!', window.innerWidth / 2, window.innerHeight / 2, '#ff0');
     showFloatingText('-$' + cost, window.innerWidth / 2, window.innerHeight / 2 + 40, '#f00');
 
+    const effectDesc = _describeUpgradeEffect(upgradeId, currentLevel + 1);
     addLog('UPGRADE', '⚡ ' + upg.name + ' upgraded to level ' + (currentLevel + 1) + '!');
-    showNotif(upg.name + ' upgraded!', 'success');
+    addLog('UPGRADE', '→ ' + effectDesc);
+    showNotif(upg.name + ' Lv' + (currentLevel + 1) + ': ' + effectDesc, 'success');
 
     updateUI();
 }
@@ -284,21 +311,10 @@ function showExpansionPanel() {
     }
 }
 
-function showUpgradesModal() {
-    switchTab('upgrades');
-}
-
-function closeUpgradesModal() {
-    switchTab('dashboard');
-}
-
-function toggleLog() {
-    switchTab('log');
-}
-
-function toggleMarket() {
-    switchTab('business');
-}
+function showUpgradesModal() { switchTab('upgrades'); }
+function closeUpgradesModal() { switchTab('dashboard'); }
+function toggleLog() { switchTab('log'); }
+function toggleMarket() { switchTab('business'); }
 
 function resetGame() {
     if (resetStep === 0) {
