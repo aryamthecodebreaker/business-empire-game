@@ -31,14 +31,13 @@ let game = {
     ],
     lastCatastropheDay: -20,
     autoBuy: false,
-    nextLocationPrice: 2500, // Stable pre-computed next location price (no randomness)
-    achievements: {}          // Unlocked achievement IDs: { 'first_profit': true, ... }
+    nextLocationPrice: 2500,
+    achievements: {}
 };
 
 let logs = [];
 let resetStep = 0;
 
-// Debounce timer for server sync
 let _serverSyncTimer = null;
 
 function saveGame() {
@@ -49,7 +48,6 @@ function saveGame() {
         console.error('Save failed:', e);
     }
 
-    // If multiplayer is active, also push to server (debounced)
     if (typeof mpState !== 'undefined' && mpState.connected && mpState.playerId) {
         clearTimeout(_serverSyncTimer);
         _serverSyncTimer = setTimeout(() => {
@@ -84,13 +82,10 @@ function loadGame() {
                 lastCatastropheDay: loaded.lastCatastropheDay !== undefined ? loaded.lastCatastropheDay : -20
             };
 
-            // Ensure stable next location price is computed for saves that lack it
             if (!game.nextLocationPrice && typeof computeNextLocationPrice === 'function') {
                 game.nextLocationPrice = computeNextLocationPrice();
             }
 
-            // Bootstrap achievements for existing saves: silently mark already-met ones
-            // as unlocked WITHOUT granting cash rewards (prevents free money on first load)
             if (!loaded.achievements && typeof ACHIEVEMENTS !== 'undefined') {
                 game.achievements = {};
                 ACHIEVEMENTS.forEach(function(ach) {
