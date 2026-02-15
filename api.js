@@ -3,7 +3,6 @@
 let supabaseClient = null;
 
 const api = {
-    // Initialize Supabase client and authenticate
     async init() {
         if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
             console.log('Supabase not configured — running in offline mode');
@@ -13,11 +12,9 @@ const api = {
         try {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            // Try to restore existing session
             const { data: { session } } = await supabaseClient.auth.getSession();
 
             if (!session) {
-                // Create anonymous account
                 const deviceId = localStorage.getItem('deviceId') || crypto.randomUUID();
                 localStorage.setItem('deviceId', deviceId);
 
@@ -25,7 +22,6 @@ const api = {
                 if (error) throw error;
             }
 
-            // Get or create player record
             const user = (await supabaseClient.auth.getUser()).data.user;
             if (user) {
                 await api.ensurePlayerRecord(user.id);
@@ -52,7 +48,6 @@ const api = {
             return existing;
         }
 
-        // Create new player record
         const displayName = game.businessName || 'Player_' + Math.floor(Math.random() * 9999);
         const { data: newPlayer, error } = await supabaseClient
             .from('players')
@@ -69,7 +64,6 @@ const api = {
         return newPlayer;
     },
 
-    // Restore city session on reload
     async restoreCitySession(playerId) {
         try {
             const { data } = await supabaseClient
@@ -95,7 +89,6 @@ const api = {
         }
     },
 
-    // Update player display name
     async updateDisplayName(name) {
         if (!supabaseClient || !mpState.playerId) return;
         await supabaseClient
@@ -105,12 +98,10 @@ const api = {
         mpState.playerName = name;
     },
 
-    // Submit day result to leaderboard
     async submitDayResult(dayResult) {
         if (!supabaseClient || !mpState.playerId) return null;
 
         try {
-            // Insert day result
             await supabaseClient.from('day_results').insert({
                 player_id: mpState.playerId,
                 city_id: mpState.cityId || null,
@@ -123,7 +114,6 @@ const api = {
                 catastrophe: dayResult.catastrophe
             });
 
-            // Update player lifetime stats
             await supabaseClient.from('players').update({
                 last_active: new Date().toISOString(),
                 total_days_played: game.day,
@@ -132,7 +122,6 @@ const api = {
                 best_day_customers: Math.max(game.bestDay, 0)
             }).eq('id', mpState.playerId);
 
-            // Upsert leaderboard entries
             const entries = [
                 { type: 'daily', metric: 'revenue', score: dayResult.revenue },
                 { type: 'alltime', metric: 'revenue', score: game.totalRevenue },
@@ -153,7 +142,6 @@ const api = {
                 });
             }
 
-            // Get current rank
             const { data: rankData } = await supabaseClient
                 .from('leaderboard_entries')
                 .select('score')
@@ -170,7 +158,6 @@ const api = {
         }
     },
 
-    // Fetch leaderboard
     async fetchLeaderboard(type, metric, limit) {
         if (!supabaseClient) return [];
         limit = limit || 50;
@@ -209,7 +196,6 @@ const api = {
         }
     },
 
-    // Sync full game state to server
     async syncGameState(gameState) {
         if (!supabaseClient || !mpState.playerId) return;
 
@@ -232,12 +218,10 @@ const api = {
         }
     },
 
-    // City operations
     async joinCity() {
         if (!supabaseClient || !mpState.playerId) return null;
 
         try {
-            // Find a city with room
             const { data: cities } = await supabaseClient
                 .from('cities')
                 .select('id, name, weather, current_day, max_players, total_businesses, economic_health, avg_price, customer_pool')
@@ -250,7 +234,6 @@ const api = {
             if (cities && cities.length > 0) {
                 city = cities[0];
             } else {
-                // Create a new city
                 const cityNames = [
                     'Riverside Market', 'Downtown District', 'Sunset Boulevard',
                     'Harbor Square', 'Green Valley', 'Central Plaza',
@@ -275,14 +258,12 @@ const api = {
                 city = newCity;
             }
 
-            // Join the city
             await supabaseClient.from('city_members').upsert({
                 city_id: city.id,
                 player_id: mpState.playerId,
                 is_active: true
             });
 
-            // Increment city player count
             await supabaseClient.from('cities').update({
                 total_businesses: (city.total_businesses || 0) + 1
             }).eq('id', city.id);
@@ -303,7 +284,49 @@ const api = {
         }
     },
 
-    // Join a city by its 6-character invite code
+    async createPrivateCity() {
+        if (!supabaseClient || !mpState.playerId) return null;
+        try {
+            let cityData = null;
+            for (let attempt = 0; attempt < 5; attempt++) {
+                const join_code = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const cityName = (game.businessName || 'Player') + "'s City";
+                const { data, error } = await supabaseClient
+                    .from('cities')
+                    .insert({
+                        name: cityName,
+                        weather: getRandomWeather(),
+                        max_players: CITY_CONFIG.MAX_PLAYERS,
+                        customer_pool: CITY_CONFIG.BASE_CUSTOMER_POOL,
+                        economic_health: 1.0,
+                        join_code: join_code
+                    })
+                    .select()
+                    .single();
+                if (!error && data) { cityData = data; break; }
+            }
+            if (!cityData) return null;
+
+            await supabaseClient.from('city_members').upsert({
+                city_id: cityData.id, player_id: mpState.playerId, is_active: true
+            });
+            await supabaseClient.from('cities').update({ total_businesses: 1 }).eq('id', cityData.id);
+
+            mpState.cityId = cityData.id;
+            mpState.cityName = cityData.name;
+            mpState.cityWeather = cityData.weather;
+            mpState.cityEconomyHealth = 1.0;
+            mpState.cityAvgPrice = 1.0;
+            mpState.cityPlayerCount = 1;
+            mpState.cityJoinCode = cityData.join_code;
+            mpState.mode = 'city';
+            return cityData;
+        } catch (err) {
+            console.error('Failed to create private city:', err);
+            return null;
+        }
+    },
+
     async joinCityByCode(code) {
         if (!supabaseClient || !mpState.playerId) return null;
         try {
@@ -366,7 +389,6 @@ const api = {
         if (!supabaseClient || !cityId) throw new Error('Not in a city');
 
         try {
-            // Get city state
             const { data: city } = await supabaseClient
                 .from('cities')
                 .select('*')
@@ -375,7 +397,6 @@ const api = {
 
             if (!city) throw new Error('City not found');
 
-            // Get other players' recent results for customer distribution
             const { data: recentResults } = await supabaseClient
                 .from('day_results')
                 .select('player_id, price_set, customers_served')
@@ -383,7 +404,6 @@ const api = {
                 .order('created_at', { ascending: false })
                 .limit(50);
 
-            // Calculate price attractiveness relative to city average
             const avgPrice = city.avg_price || 1.0;
             const priceRatio = data.price / avgPrice;
             let priceScore;
@@ -401,22 +421,18 @@ const api = {
             const basePool = (city.customer_pool || CITY_CONFIG.BASE_CUSTOMER_POOL) * (city.economic_health || 1.0) * WEATHER[city.weather || 'sunny'].mult;
             const activePlayers = Math.max(1, city.total_businesses || 1);
 
-            // Share of customer pool with random variance
             const share = (totalScore / (totalScore + activePlayers - 1)) * basePool;
             const customerPoolShare = Math.floor(share * (0.8 + Math.random() * 0.4));
 
-            // Collect competitor prices for the ticker
             const competitorPrices = (recentResults || [])
                 .filter(function(r) { return r.player_id !== data.playerId; })
                 .map(function(r) { return r.price_set; })
                 .filter(function(p) { return p != null; });
 
-            // Rotate city weather for next round
             const newWeather = getRandomWeather();
             const newEconomy = Math.max(CITY_CONFIG.ECONOMY_MIN, Math.min(CITY_CONFIG.ECONOMY_MAX,
                 (city.economic_health || 1.0) + (Math.random() * 0.1 - 0.05)));
 
-            // Update city state
             await supabaseClient.from('cities').update({
                 weather: newWeather,
                 economic_health: newEconomy,
@@ -430,7 +446,7 @@ const api = {
                 cityWeather: city.weather,
                 cityAvgPrice: avgPrice,
                 competitorPrices: competitorPrices,
-                cityRank: null, // Calculated separately
+                cityRank: null,
                 marketCondition: city.economic_health || 1.0
             };
         } catch (err) {
@@ -439,7 +455,6 @@ const api = {
         }
     },
 
-    // Chat
     async sendChatMessage(cityId, message) {
         if (!supabaseClient || !mpState.playerId || !cityId) return;
 
@@ -474,7 +489,6 @@ const api = {
         }
     },
 
-    // Daily challenges
     async fetchDailyChallenges() {
         if (!supabaseClient) return [];
 
@@ -487,7 +501,6 @@ const api = {
 
             if (data && data.length > 0) return data;
 
-            // No challenges for today — generate them (in production this would be a server cron job)
             const challenges = [];
             const shuffled = CHALLENGE_TYPES.sort(function() { return Math.random() - 0.5; }).slice(0, 3);
 
@@ -534,7 +547,6 @@ const api = {
         }
     },
 
-    // Realtime subscriptions
     subscribeToCityFeed(cityId, onEvent) {
         if (!supabaseClient || !cityId) return null;
 
@@ -546,10 +558,7 @@ const api = {
                 table: 'day_results',
                 filter: 'city_id=eq.' + cityId
             }, function(payload) {
-                onEvent({
-                    type: 'day_complete',
-                    data: payload.new
-                });
+                onEvent({ type: 'day_complete', data: payload.new });
             })
             .on('postgres_changes', {
                 event: 'UPDATE',
@@ -557,10 +566,7 @@ const api = {
                 table: 'cities',
                 filter: 'id=eq.' + cityId
             }, function(payload) {
-                onEvent({
-                    type: 'city_update',
-                    data: payload.new
-                });
+                onEvent({ type: 'city_update', data: payload.new });
             })
             .on('postgres_changes', {
                 event: 'INSERT',
@@ -568,10 +574,7 @@ const api = {
                 table: 'chat_messages',
                 filter: 'city_id=eq.' + cityId
             }, function(payload) {
-                onEvent({
-                    type: 'chat',
-                    data: payload.new
-                });
+                onEvent({ type: 'chat', data: payload.new });
             })
             .subscribe();
     },
