@@ -30,7 +30,9 @@ let game = {
         { id: 1, name: "Main Stand", purchasePrice: 0, rentPerDay: 0, dayPurchased: 0 }
     ],
     lastCatastropheDay: -20,
-    autoBuy: false
+    autoBuy: false,
+    nextLocationPrice: 2500, // Stable pre-computed next location price (no randomness)
+    achievements: {}          // Unlocked achievement IDs: { 'first_profit': true, ... }
 };
 
 let logs = [];
@@ -82,6 +84,21 @@ function loadGame() {
                 lastCatastropheDay: loaded.lastCatastropheDay !== undefined ? loaded.lastCatastropheDay : -20
             };
 
+            // Ensure stable next location price is computed for saves that lack it
+            if (!game.nextLocationPrice && typeof computeNextLocationPrice === 'function') {
+                game.nextLocationPrice = computeNextLocationPrice();
+            }
+
+            // Bootstrap achievements for existing saves: silently mark already-met ones
+            // as unlocked WITHOUT granting cash rewards (prevents free money on first load)
+            if (!loaded.achievements && typeof ACHIEVEMENTS !== 'undefined') {
+                game.achievements = {};
+                ACHIEVEMENTS.forEach(function(ach) {
+                    try { if (ach.condition(game)) game.achievements[ach.id] = true; }
+                    catch (e) {}
+                });
+            }
+
             showNotif('💾 Game loaded!', 'success');
         }
 
@@ -114,6 +131,8 @@ function getDefaultGameState() {
         upgrades: { marketing: 0, quality: 0, efficiency: 0, storage: 0 },
         locations: [{ id: 1, name: "Main Stand", purchasePrice: 0, rentPerDay: 0, dayPurchased: 0 }],
         lastCatastropheDay: -20,
-        autoBuy: false
+        autoBuy: false,
+        nextLocationPrice: 2500,
+        achievements: {}
     };
 }
