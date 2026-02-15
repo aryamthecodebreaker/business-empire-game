@@ -25,7 +25,7 @@ h1:hover {
 .header-info {
     text-align: center;
     font-size: 0.9rem;
-    color: #0a0;
+    color: #6f6;
     margin-bottom: 1rem;
 }
 .xp-bar {
@@ -63,9 +63,10 @@ h1:hover {
 .stat-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.5rem 0;
+    padding: 0.3rem 0;
     border-bottom: 1px solid #0a0;
     align-items: center;
+    gap: 0.3rem;
 }
 .stat-row span:last-child {
     font-size: 1.1rem;
@@ -126,7 +127,7 @@ input, textarea {
     animation: slideIn 0.3s;
     max-width: 300px;
 }
-.notification.warning { border-color: #ff0; color: #ff0; }
+.notification.warning { border-color: #f90; color: #f90; }
 .notification.error { border-color: #f00; color: #f00; }
 .modal {
     position: fixed;
