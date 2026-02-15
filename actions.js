@@ -22,7 +22,7 @@ function buyStock(amt) {
         showFloatingText('+' + amt + ' units', rect.left + rect.width / 2, rect.top + 30, '#0ff');
     }
 
-    addLog('PLAYER', '\uD83D\uDCE6 Bought ' + amt + ' units for $' + cost.toFixed(2));
+    addLog('PLAYER', '📦 Bought ' + amt + ' units for $' + cost.toFixed(2));
     updateUI();
 }
 
@@ -49,8 +49,8 @@ function buyLocation() {
     game.reputation += 10;
     game.maxInventory += 20;
 
-    addLog('BUSINESS', '\uD83C\uDFE2 BOUGHT Location #' + locationNum + ' for $' + price.toFixed(0));
-    addLog('BUSINESS', '\uD83D\uDCCD Rent: $' + rentPerDay.toFixed(0) + '/day (+10 rep, +20 storage)');
+    addLog('BUSINESS', '🏢 BOUGHT Location #' + locationNum + ' for $' + price.toFixed(0));
+    addLog('BUSINESS', '📍 Rent: $' + rentPerDay.toFixed(0) + '/day (+10 rep, +20 storage)');
     showNotif('Location #' + locationNum + ' purchased!', 'success');
 
     updateUI();
@@ -67,6 +67,30 @@ function buyUpgrade(upgradeId) {
         return;
     }
 
+    // Soft-lock warning: check if remaining cash covers at least 10 units of inventory
+    const cashAfter = game.cash - cost;
+    const minRestockCost = 10 * game.marketPrices.materials;
+    if (cashAfter < minRestockCost) {
+        window._pendingUpgrade = upgradeId;
+        const warnCost = document.getElementById('upgradeWarnCost');
+        const warnAfter = document.getElementById('upgradeWarnCashAfter');
+        const warnMin = document.getElementById('upgradeWarnMinStock');
+        if (warnCost) warnCost.textContent = cost.toFixed(2);
+        if (warnAfter) warnAfter.textContent = cashAfter.toFixed(2);
+        if (warnMin) warnMin.textContent = minRestockCost.toFixed(2);
+        const modal = document.getElementById('upgradeWarnModal');
+        if (modal) { modal.classList.remove('hidden'); return; }
+        // Fallback if modal not in HTML: proceed anyway
+    }
+
+    _executeUpgrade(upgradeId);
+}
+
+function _executeUpgrade(upgradeId) {
+    const upg = UPGRADES.find(function(u) { return u.id === upgradeId; });
+    const currentLevel = game.upgrades[upgradeId] || 0;
+    const cost = Math.floor(upg.baseCost * Math.pow(1.5, currentLevel));
+
     game.cash -= cost;
     game.upgrades[upgradeId] = currentLevel + 1;
 
@@ -74,13 +98,29 @@ function buyUpgrade(upgradeId) {
         game.maxInventory += 50;
     }
 
-    showFloatingText('\u2B06 UPGRADE!', window.innerWidth / 2, window.innerHeight / 2, '#ff0');
+    showFloatingText('⬆ UPGRADE!', window.innerWidth / 2, window.innerHeight / 2, '#ff0');
     showFloatingText('-$' + cost, window.innerWidth / 2, window.innerHeight / 2 + 40, '#f00');
 
-    addLog('UPGRADE', '\u26A1 ' + upg.name + ' upgraded to level ' + (currentLevel + 1) + '!');
+    addLog('UPGRADE', '⚡ ' + upg.name + ' upgraded to level ' + (currentLevel + 1) + '!');
     showNotif(upg.name + ' upgraded!', 'success');
 
     updateUI();
+}
+
+function confirmUpgrade() {
+    const modal = document.getElementById('upgradeWarnModal');
+    if (modal) modal.classList.add('hidden');
+    if (window._pendingUpgrade) {
+        _executeUpgrade(window._pendingUpgrade);
+        window._pendingUpgrade = null;
+    }
+}
+
+function cancelUpgrade() {
+    const modal = document.getElementById('upgradeWarnModal');
+    if (modal) modal.classList.add('hidden');
+    window._pendingUpgrade = null;
+    showNotif('Upgrade cancelled', 'warning');
 }
 
 function buyUpgradeFromTab(upgradeId) {
@@ -102,7 +142,7 @@ function updatePrice() {
     }
 
     game.price = newPrice;
-    addLog('PLAYER', '\uD83D\uDCB0 Price changed to $' + game.price.toFixed(2));
+    addLog('PLAYER', '💰 Price changed to $' + game.price.toFixed(2));
     updateUI();
 }
 
@@ -113,13 +153,13 @@ function toggleAutoBuy() {
     if (toggle.checked) {
         settings.classList.remove('hidden');
         game.autoBuy = true;
-        showNotif('\uD83E\uDD16 Auto-buy enabled!', 'success');
-        addLog('SYSTEM', '\uD83E\uDD16 Auto-buy inventory: ON');
+        showNotif('🤖 Auto-buy enabled!', 'success');
+        addLog('SYSTEM', '🤖 Auto-buy inventory: ON');
     } else {
         settings.classList.add('hidden');
         game.autoBuy = false;
         showNotif('Auto-buy disabled', 'warning');
-        addLog('SYSTEM', '\uD83E\uDD16 Auto-buy inventory: OFF');
+        addLog('SYSTEM', '🤖 Auto-buy inventory: OFF');
     }
     saveGame();
 }
@@ -136,15 +176,21 @@ function doAutoBuy() {
     if (game.inventory < threshold) {
         const toBuy = Math.max(0, targetAmount - game.inventory);
         if (toBuy > 0) {
-            const cost = toBuy * game.marketPrices.materials * (1 - (game.upgrades.efficiency || 0) * 0.10);
+            const unitCost = game.marketPrices.materials * (1 - (game.upgrades.efficiency || 0) * 0.10);
+            // Buy as much as affordable, not all-or-nothing
+            const maxAffordable = Math.floor(game.cash / unitCost);
+            const maxStorage = game.maxInventory - game.inventory;
+            const actualBuy = Math.min(toBuy, maxAffordable, maxStorage);
 
-            if (game.cash >= cost && game.inventory + toBuy <= game.maxInventory) {
+            if (actualBuy > 0) {
+                const cost = actualBuy * unitCost;
                 game.cash -= cost;
-                game.inventory += toBuy;
-                addLog('SYSTEM', '\uD83E\uDD16 AUTO-BUY: Purchased ' + toBuy + ' units for $' + cost.toFixed(2));
-                showNotif('\uD83E\uDD16 Auto-bought ' + toBuy + ' units', 'success');
-            } else if (game.cash < cost) {
-                addLog('WARNING', '\uD83E\uDD16 AUTO-BUY: Not enough cash (need $' + cost.toFixed(2) + ')');
+                game.inventory += actualBuy;
+                const partial = actualBuy < toBuy ? ' [partial — low cash]' : '';
+                addLog('SYSTEM', '🤖 AUTO-BUY: +' + actualBuy + ' units ($' + cost.toFixed(2) + ')' + partial);
+                showNotif('🤖 Auto-bought ' + actualBuy + ' units', 'success');
+            } else {
+                addLog('WARNING', '🤖 AUTO-BUY: Not enough cash to restock (have $' + game.cash.toFixed(2) + ')');
             }
         }
     }
@@ -152,7 +198,7 @@ function doAutoBuy() {
 
 function startDay() {
     if (game.inventory === 0) {
-        addLog('ERROR', '\u26A0 No inventory!');
+        addLog('ERROR', '⚠ No inventory!');
         showNotif('No inventory!', 'error');
         return;
     }
@@ -181,7 +227,7 @@ function nextDay() {
     document.getElementById('setupPanel').classList.remove('hidden');
     document.getElementById('startBtn').disabled = false;
     document.getElementById('playerAction').value = '';
-    addLog('SYSTEM', '\u2550\u2550\u2550 DAY ' + game.day + ' BEGINS \u2550\u2550\u2550');
+    addLog('SYSTEM', '══ DAY ' + game.day + ' BEGINS ══');
     updateUI();
 }
 
@@ -209,7 +255,7 @@ window.editName = function() {
     }
 
     game.businessName = trimmed.toUpperCase();
-    addLog('PLAYER', '\u270F\uFE0F Business renamed to: ' + game.businessName);
+    addLog('PLAYER', '✏️ Business renamed to: ' + game.businessName);
     showNotif('Renamed to: ' + game.businessName, 'success');
     updateUI();
 };
@@ -218,7 +264,7 @@ function togglePlan() {
     const section = document.getElementById('planSection');
     const btn = document.getElementById('togglePlanBtn');
     section.classList.toggle('hidden');
-    btn.textContent = section.classList.contains('hidden') ? '\uD83D\uDCDD Strategy' : '\uD83D\uDCDD Hide';
+    btn.textContent = section.classList.contains('hidden') ? '📝 Strategy' : '📝 Hide';
 }
 
 function showTutorial() {
@@ -228,7 +274,7 @@ function showTutorial() {
 function closeWelcome() {
     document.getElementById('welcomeModal').classList.add('hidden');
     localStorage.setItem('hasPlayedBefore', 'true');
-    showNotif('Good luck! \uD83C\uDF40', 'success');
+    showNotif('Good luck! 🍀', 'success');
 }
 
 function showExpansionPanel() {
@@ -257,12 +303,12 @@ function toggleMarket() {
 function resetGame() {
     if (resetStep === 0) {
         resetStep = 1;
-        document.getElementById('resetBtn').textContent = '\uD83D\uDD04 CLICK AGAIN!';
+        document.getElementById('resetBtn').textContent = '🔄 CLICK AGAIN!';
         document.getElementById('resetBtn').style.animation = 'pulse 0.5s infinite';
-        showNotif('\u26A0\uFE0F Click again!', 'warning');
+        showNotif('⚠️ Click again!', 'warning');
         setTimeout(function() {
             resetStep = 0;
-            document.getElementById('resetBtn').textContent = '\uD83D\uDD04 RESET';
+            document.getElementById('resetBtn').textContent = '🔄 RESET';
             document.getElementById('resetBtn').style.animation = '';
         }, 5000);
     } else {
@@ -273,7 +319,7 @@ function resetGame() {
         document.getElementById('resetLocs').textContent = game.locations.length;
         document.getElementById('resetModal').classList.remove('hidden');
         resetStep = 0;
-        document.getElementById('resetBtn').textContent = '\uD83D\uDD04 RESET';
+        document.getElementById('resetBtn').textContent = '🔄 RESET';
         document.getElementById('resetBtn').style.animation = '';
     }
 }
