@@ -1,12 +1,20 @@
 // Entry point — init, event binding, module wiring
 
 function selectMode(mode) {
+    // Read business name if player set one on the mode select screen
+    const nameInput = document.getElementById('businessNameInput');
+    if (nameInput && nameInput.value.trim().length > 0) {
+        game.businessName = nameInput.value.trim().toUpperCase();
+        if (typeof addLog === 'function') addLog('PLAYER', '✏️ Business named: ' + game.businessName);
+    }
     const screen = document.getElementById('modeSelectScreen');
     if (screen) screen.style.display = 'none';
     localStorage.setItem('preferredMode', mode);
     if (mode === 'online') {
         setTimeout(function() { switchTab('multiplayer'); }, 300);
     }
+    saveGame();
+    updateUI();
 }
 
 function init() {
@@ -21,7 +29,6 @@ function init() {
             modeScreen.style.display = 'flex';
         } else {
             modeScreen.style.display = 'none';
-            // If user previously chose online, switch to multiplayer tab
             if (localStorage.getItem('preferredMode') === 'online') {
                 setTimeout(function() { switchTab('multiplayer'); }, 300);
             }
