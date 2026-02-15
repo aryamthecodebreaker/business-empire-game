@@ -125,10 +125,79 @@ const CITY_CONFIG = {
     ECONOMY_MAX: 1.3
 };
 
+// Achievements — unlocked by meeting conditions, grant one-time cash rewards
+// Conditions use function(g) style to receive game state as parameter (safe for server-side)
+const ACHIEVEMENTS = [
+    {
+        id: 'first_profit',
+        name: 'First Dollar',
+        icon: '\uD83D\uDCB0',
+        desc: 'Earn your first profit day',
+        condition: function(g) { return g.totalRevenue > 0 && g.streak >= 1; },
+        reward: { cash: 10 }
+    },
+    {
+        id: 'reputation_50',
+        name: 'Getting Known',
+        icon: '\u2B50',
+        desc: 'Reach 50 reputation',
+        condition: function(g) { return g.reputation >= 50; },
+        reward: { cash: 25 }
+    },
+    {
+        id: 'reputation_200',
+        name: 'Local Legend',
+        icon: '\uD83C\uDF1F',
+        desc: 'Reach 200 reputation',
+        condition: function(g) { return g.reputation >= 200; },
+        reward: { cash: 100 }
+    },
+    {
+        id: 'second_location',
+        name: 'Expanding Empire',
+        icon: '\uD83C\uDFE2',
+        desc: 'Buy your second location',
+        condition: function(g) { return g.locations && g.locations.length >= 2; },
+        reward: { cash: 50 }
+    },
+    {
+        id: 'streak_5',
+        name: 'On a Roll',
+        icon: '\uD83D\uDD25',
+        desc: 'Achieve a 5-day profit streak',
+        condition: function(g) { return g.streak >= 5; },
+        reward: { cash: 30 }
+    },
+    {
+        id: 'streak_10',
+        name: 'Unstoppable',
+        icon: '\uD83D\uDE80',
+        desc: 'Achieve a 10-day profit streak',
+        condition: function(g) { return g.streak >= 10; },
+        reward: { cash: 75 }
+    },
+    {
+        id: 'total_revenue_500',
+        name: 'Half-Grand',
+        icon: '\uD83D\uDCB5',
+        desc: 'Earn $500 total revenue',
+        condition: function(g) { return g.totalRevenue >= 500; },
+        reward: { cash: 50 }
+    },
+    {
+        id: 'level_5',
+        name: 'Level Up',
+        icon: '\u26A1',
+        desc: 'Reach Level 5',
+        condition: function(g) { return g.level >= 5; },
+        reward: { cash: 100 }
+    }
+];
+
 // Make available globally (client) or via module.exports (server)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         GAME_VERSION, WEATHER, WEATHER_POOL, CATASTROPHES, UPGRADES,
-        CITY_EVENTS, CHALLENGE_TYPES, VALIDATION, CITY_CONFIG, NPC_RIVALS
+        CITY_EVENTS, CHALLENGE_TYPES, VALIDATION, CITY_CONFIG, NPC_RIVALS, ACHIEVEMENTS
     };
 }
